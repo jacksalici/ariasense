@@ -28,6 +28,14 @@ Append the report to the stream findings:
 uv run aria-demo inspect data/s01_desk.vrs -o docs/streams.md
 ```
 
+Render the gaze dot and trail on the upright RGB video. This is the M1 check that the dot lands on what you looked at:
+
+```bash
+uv run aria-demo overlay data/s01_desk.vrs -o runs/s01_overlay.mp4
+```
+
+Add `--show` for a live window and `--speed 1` to play back in real time.
+
 ## Development
 
 ```bash

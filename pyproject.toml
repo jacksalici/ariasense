@@ -10,6 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.162.5",
     "numpy>=2.5.4",
+    "opencv-python>=5.0.0.93",
     "projectaria-client-sdk>=2.5.1",
     "projectaria-tools>=2.3.0",
     "pydantic>=2.14.3",
