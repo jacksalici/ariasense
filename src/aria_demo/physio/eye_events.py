@@ -40,6 +40,7 @@ class EyeStats:
     fix_rate_hz: float  # fixations per second (≈ saccade rate)
     fix_ratio: float  # fraction of time spent in fixations
     gaze_disp_deg: float | None  # spread of gaze direction (RMS distance from mean)
+    valid_ratio: float = 1.0  # fraction of samples with valid gaze (~0 when not worn)
 
 
 def eyes_closed(samples: Sequence[EyeGazeSample]) -> np.ndarray:
@@ -134,4 +135,5 @@ def eye_stats(samples: Sequence[EyeGazeSample], window_s: float | None = None) -
         fix_rate_hz=len(fixations) / span,
         fix_ratio=min(1.0, fix_time / span),
         gaze_disp_deg=disp,
+        valid_ratio=float(np.mean([s.valid for s in samples])),
     )

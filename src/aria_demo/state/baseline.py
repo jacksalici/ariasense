@@ -21,6 +21,7 @@ MIN_STD: dict[str, float] = {
     "fix_rate_hz": 0.2,
     "fix_ratio": 0.05,
     "gaze_disp_deg": 1.0,
+    "gaze_valid": 0.05,
     "head_gyro_rms": 0.05,
     "head_gyro_peak": 0.1,
     "head_jerk": 2.0,

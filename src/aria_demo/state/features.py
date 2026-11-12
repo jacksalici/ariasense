@@ -26,6 +26,7 @@ FEATURES: dict[str, str] = {
     "fix_rate_hz": "Fixations per second",
     "fix_ratio": "Fraction of time fixating",
     "gaze_disp_deg": "Gaze dispersion (deg)",
+    "gaze_valid": "Fraction of valid gaze samples",
     "head_gyro_rms": "Head rotation speed (rad/s)",
     "head_gyro_peak": "Peak head rotation (rad/s)",
     "head_jerk": "Head jerk (m/s^3)",
@@ -114,6 +115,7 @@ class FeatureExtractor:
                 fix_rate_hz=eye.fix_rate_hz,
                 fix_ratio=eye.fix_ratio,
                 gaze_disp_deg=eye.gaze_disp_deg,
+                gaze_valid=eye.valid_ratio,
             )
 
         motion = motion_stats(self._imu.since(t_ns - int(self.w.motion_s * 1e9)))

@@ -253,7 +253,7 @@ class LiveSource(StreamSource):
     def __init__(
         self,
         interface: str = "usb",
-        profile: str = "profile9",
+        profile: str = "mp_streaming_demo",
         serial: str | None = None,
         control_device: bool = True,
         record_to: Path | None = None,
@@ -268,10 +268,13 @@ class LiveSource(StreamSource):
             raise ValueError(f"interface must be one of {STREAMING_INTERFACES}")
         self._device = None
         if control_device:
-            client = sdk_gen2.DeviceClient()
-            client.set_client_config(sdk_gen2.DeviceClientConfig())
+            # Keep the client alive for the whole session: if it is garbage-collected the
+            # device handle loses its session and stop_streaming() fails ("state: 1").
+            self._client = sdk_gen2.DeviceClient()
+            self._client.set_client_config(sdk_gen2.DeviceClientConfig())
+            # Without adb, only the default target or an IP works (a serial needs adb).
             target = sdk_gen2.DeviceTarget(serial=serial) if serial else None
-            self._device = client.connect(target) if target else client.connect()
+            self._device = self._client.connect(target) if target else self._client.connect()
             cfg = sdk_gen2.HttpStreamingConfig()
             cfg.profile_name = profile
             cfg.streaming_interface = {
@@ -280,6 +283,10 @@ class LiveSource(StreamSource):
                 "wifi_sap": sdk_gen2.StreamingInterface.WIFI_SAP,
             }[interface]
             self._device.set_streaming_config(cfg)
+            # Start the device *before* the receiver, as the SDK sample does: starting
+            # streaming (re)writes the streaming certificates the receiver then loads.
+            # The other order aborted the process ("couldn't read cert file").
+            self._device.start_streaming()
 
         server_config = sdk_gen2.HttpServerConfig()
         server_config.address = "0.0.0.0"
@@ -291,8 +298,6 @@ class LiveSource(StreamSource):
             self._receiver.record_to_vrs(str(record_to))
         self.register(self._receiver)
         self._receiver.start_server()
-        if self._device is not None:
-            self._device.start_streaming()
         self._started = time.monotonic()
 
     def latency_ms(self, t_ns: int) -> float | None:

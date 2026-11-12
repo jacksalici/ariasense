@@ -287,7 +287,9 @@ InterfaceOpt = Annotated[
         help="usb, wifi_sta (glasses on your Wi-Fi) or wifi_sap (laptop joins the glasses' hotspot)."
     ),
 ]
-ProfileOpt = Annotated[str, typer.Option(help="Streaming profile on the glasses.")]
+ProfileOpt = Annotated[
+    str, typer.Option(help="Streaming profile: mp_streaming_demo (RGB 10 Hz) or profile9 (RGB 5 Hz).")
+]
 SerialOpt = Annotated[str | None, typer.Option(help="Device serial (when several are plugged in).")]
 ControlOpt = Annotated[
     bool,
@@ -320,7 +322,7 @@ def _live_factory(
 @app.command()
 def live(
     interface: InterfaceOpt = "usb",
-    profile: ProfileOpt = "profile9",
+    profile: ProfileOpt = "mp_streaming_demo",
     serial: SerialOpt = None,
     control: ControlOpt = True,
     record: Annotated[Path | None, typer.Option(help="Also save the stream to this VRS file.")] = None,
@@ -355,7 +357,7 @@ def live(
 def stream_check(
     seconds: Annotated[float, typer.Option(help="How long to stream.")] = 15.0,
     interface: InterfaceOpt = "usb",
-    profile: ProfileOpt = "profile9",
+    profile: ProfileOpt = "mp_streaming_demo",
     serial: SerialOpt = None,
     control: ControlOpt = True,
     replay: ReplayOpt = None,

@@ -27,6 +27,7 @@ from aria_demo.state.features import FeatureVector
 
 class State(StrEnum):
     UNKNOWN = "Calibrating"
+    NO_SIGNAL = "No signal"  # glasses not worn: no valid gaze and no pulse
     NEUTRAL = "Neutral"
     CALM = "Calm"
     FOCUSED = "Focused"
@@ -34,6 +35,23 @@ class State(StrEnum):
     STRESSED = "Stressed"
     FATIGUED = "Fatigued"
     STARTLED = "Startled"
+
+
+MIN_GAZE_VALID = 0.3
+
+
+def not_worn_reasons(fv: FeatureVector) -> list[str]:
+    """Why the glasses look unworn (empty list = worn).
+
+    Worn means valid gaze for at least 30% of the eye window, or a pulse on the
+    nose pad. Seen live with the glasses lying on a desk: gaze invalid, no pulse,
+    yet every other feature looked "calm".
+    """
+    gaze_ok = (fv.get("gaze_valid") or 0.0) >= MIN_GAZE_VALID
+    pulse_ok = fv.get("hr_bpm") is not None
+    if gaze_ok or pulse_ok:
+        return []
+    return ["no valid eye gaze", "no pulse on the nose pad", "are the glasses being worn?"]
 
 
 @dataclass
@@ -195,6 +213,10 @@ class StateEstimator:
     def update(self, fv: FeatureVector, extras: dict[str, float] | None = None) -> StateEstimate:
         """`extras` are extra pseudo-z features, e.g. {"object_dwell_s": ...} from perception."""
         t = fv.t_ns
+        if reasons := not_worn_reasons(fv):
+            # Nothing physiological to estimate; leave axes and hysteresis untouched.
+            self._last_t = t
+            return StateEstimate(t, State.NO_SIGNAL, 1.0, reasons, None, None, State.NO_SIGNAL)
         dt_s = 0.0 if self._last_t is None else (t - self._last_t) / 1e9
         self._last_t = t
 

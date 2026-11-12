@@ -3,6 +3,7 @@
 // ---- configuration ---------------------------------------------------------
 const STATE_COLORS = {
   Calibrating: "#64748b",
+  "No signal": "#475569",
   Neutral: "#94a3b8",
   Calm: "#34d399",
   Focused: "#60a5fa",

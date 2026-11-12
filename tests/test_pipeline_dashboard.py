@@ -165,3 +165,28 @@ def test_encode_jpeg_downscales(width):
     data = base64.b64decode(encode_jpeg(img, width=1280))
     decoded = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
     assert decoded.shape[1] == min(width, 1280)
+
+
+class UnwornSource(FakeSource):
+    """Glasses lying on a desk: gaze invalid, PPG flat, video still streaming."""
+
+    def samples(self):
+        for s in super().samples():
+            if isinstance(s, EyeGazeSample):
+                yield EyeGazeSample(s.t_ns, 0.0, 0.0, None, False, None, None)
+            elif isinstance(s, PpgSample):
+                yield PpgSample(s.t_ns, 166_000.0)
+            else:
+                yield s
+
+
+def test_pipeline_reports_no_signal_and_does_not_calibrate_when_not_worn():
+    msgs = []
+    DemoPipeline(lambda: UnwornSource(), lambda img: [CUP], baseline_s=2.0, encode=lambda img: None).run(
+        msgs.append
+    )
+    states = [m for m in msgs if m["type"] == "state"]
+    assert states and all(m["state"] == "No signal" for m in states)
+    assert "no pulse on the nose pad" in states[-1]["reasons"]
+    assert not any(m["type"] == "baseline" for m in msgs)  # baseline never built from unworn data
+    assert states[-1]["baseline_progress"] == 0

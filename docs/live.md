@@ -12,6 +12,15 @@ uv run aria_gen2 auth pair
 uv run aria_gen2 auth check
 ```
 
+Notes from the first live session:
+- **`adb` is not needed** if you don't pass `--serial`. The default connection works over USB networking (the glasses show up as `10.37.25.x`). Passing `--serial` requires `adb` on the PATH.
+- **Streaming certificates** are created in `~/.aria/streaming-certs/persistent` the first time streaming starts. The device must start streaming *before* the receiver loads them; `LiveSource` already does this.
+- If a run crashes and leaves the glasses streaming, the next start fails with "User session already started". Clear it with:
+
+```bash
+uv run aria_gen2 streaming stop
+```
+
 ## 1. Check the streams (no YOLO, no UI)
 
 ```bash
@@ -20,7 +29,7 @@ uv run aria-demo stream-check --interface usb --seconds 15
 
 This prints, for each stream (rgb, eye_gaze, ppg, imu), the sample count and rate. It also prints how many RGB frames were skipped and the capture-to-host latency, measured with TicSync.
 
-A stream marked `<- missing` is not in the streaming profile. Try another profile with `--profile`. Ambient light (ALS) has no streaming callback, so the `lux` feature is unavailable live.
+A stream marked `<- missing` is not in the streaming profile. Try another profile with `--profile`. `mp_streaming_demo` is the default (RGB at 10 Hz); `profile9` gives RGB at only 5 Hz. Ambient light (ALS) has no streaming callback, so the `lux` feature is unavailable live.
 
 ## 2. Run the dashboard live
 

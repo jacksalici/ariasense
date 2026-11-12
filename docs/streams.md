@@ -42,8 +42,21 @@ This page records which signals we can actually use. It has two parts:
   - **The RGB image is already upright**: 2560×1920, FISHEYE624. Unlike Gen 1, no 90° rotation is needed.
   - **Blink flags are inverted**: `vergence.left/right_blink` are True while the eye is open.
   - YOLO tags the wearer's own forearm as `person`. Those boxes are filtered out when they touch the bottom edge.
-- [ ] Which streams arrive **live** through the Client SDK streaming callbacks vs. only in recordings?
-- [ ] End-to-end latency of USB vs. Wi-Fi streaming.
+- [x] Which streams arrive **live**? Checked with the glasses over USB on 2026-11-13 using `aria-demo stream-check`:
+
+  | stream | `mp_streaming_demo` (default) | `profile9` |
+  |---|---|---|
+  | RGB | **10 Hz**, 2016×1512 | 5 Hz, 2560×1920 |
+  | eye gaze | 30 Hz | 30 Hz |
+  | PPG | 128 Hz | 128 Hz |
+  | IMU (one, decimated ÷4) | 200 Hz | 200 Hz |
+  | calibration | yes, rescaled to the stream resolution | yes |
+  | ALS | **no callback**, so `lux` is unavailable live | — |
+
+  - No samples were dropped.
+  - Capture-to-host latency (TicSync) was a median of **310 ms** (p95 316 ms) on both profiles.
+  - In the dashboard, capture to fully processed (decode, YOLO, JPEG) was ~370–390 ms.
+- [ ] Latency over Wi-Fi (`wifi_sta`) and over the hotspot (`wifi_sap`).
 
 ## 2. Per-recording reports
 

@@ -132,3 +132,20 @@ def test_config_loads_yaml(tmp_path):
     assert c.min_state_s == 7 and c.thresholds.focused_attention == 1.1
     assert c.startle.motion_z == 4.0  # untouched defaults
     assert StateConfig.load(tmp_path / "missing.yaml") == StateConfig()
+
+
+def test_not_worn_reasons():
+    from aria_demo.state.estimator import not_worn_reasons
+
+    assert not_worn_reasons(fv(0)) == []  # pulse present
+    assert not_worn_reasons(fv(0, hr_bpm=None, gaze_valid=0.9)) == []  # gaze present
+    assert "no pulse on the nose pad" in not_worn_reasons(fv(0, hr_bpm=None, gaze_valid=0.0))
+    assert not_worn_reasons(FeatureVector(0, {})) != []  # nothing yet
+
+
+def test_no_signal_when_not_worn_and_axes_untouched():
+    est = StateEstimator(cfg(), make_baseline())
+    run(est, range(5))
+    e = est.update(fv(5, hr_bpm=None, gaze_valid=0.0))
+    assert e.state is State.NO_SIGNAL and e.arousal is None
+    assert est.update(fv(6)).state is State.CALM  # back on: continues where it was

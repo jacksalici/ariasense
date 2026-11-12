@@ -30,7 +30,7 @@ from aria_demo.perception.attention import AttentionState, AttentionTracker
 from aria_demo.perception.pipeline import Detector, PerceptionFrame, perceive
 from aria_demo.state.baseline import Baseline
 from aria_demo.state.config import StateConfig
-from aria_demo.state.estimator import StateEstimate, StateEstimator
+from aria_demo.state.estimator import State, StateEstimate, StateEstimator, not_worn_reasons
 from aria_demo.state.features import FeatureExtractor, FeatureVector
 from aria_demo.types import Sample
 
@@ -272,14 +272,17 @@ class DemoPipeline:
                 self.controls.rebaseline = False
                 self._new_baseline()
                 estimator = StateEstimator(self.config, None)
-            if not self.baseline.ready:
+            not_worn = not_worn_reasons(fv)
+            if not self.baseline.ready and not not_worn:  # never calibrate on an unworn device
                 self._baseline_t0 = self._baseline_t0 or fv.t_ns
                 if self.baseline.add(fv):  # just froze
                     estimator = StateEstimator(self.config, self.baseline)
                     emit(baseline_message(self.baseline))
             z = self.baseline.z(fv) if self.baseline.ready else {}
             est = None
-            if self.baseline.ready:
+            if not_worn:
+                est = StateEstimate(fv.t_ns, State.NO_SIGNAL, 1.0, not_worn, None, None, State.NO_SIGNAL)
+            elif self.baseline.ready:
                 dz = dwell_pseudo_z(last_attention)
                 est = estimator.update(fv, extras=None if dz is None else {"object_dwell_s": dz})
             emit(features_message(fv, t_rel, {k: v for k, v in z.items() if v is not None}))

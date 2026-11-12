@@ -79,6 +79,7 @@ def plot(
 
 STATE_COLORS = {
     "Calibrating": "#e5e7eb",
+    "No signal": "#9ca3af",
     "Neutral": "#cbd5e1",
     "Calm": "#22c55e",
     "Focused": "#3b82f6",
