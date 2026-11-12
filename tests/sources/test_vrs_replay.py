@@ -53,11 +53,12 @@ def test_rgb_conversion_and_grayscale_fallback():
 
 def test_eye_gaze_conversion():
     vergence = SimpleNamespace(
-        left_blink=True, left_blink_valid=True, right_blink=False, right_blink_valid=False
+        left_blink=False, left_blink_valid=True, right_blink=False, right_blink_valid=False
     )
     gaze = SimpleNamespace(
         yaw=0.1, pitch=-0.2, depth=float("nan"), combined_gaze_valid=True, vergence=vergence
     )
+    # SDK flag False = eye closed -> our left_blink True
     s = to_sample(SimpleNamespace(eye_gaze_data=lambda: gaze), Signal.EYE_GAZE, "eyegaze", 7)
     assert s == EyeGazeSample(
         t_ns=7, yaw=0.1, pitch=-0.2, depth_m=None, valid=True, left_blink=True, right_blink=None

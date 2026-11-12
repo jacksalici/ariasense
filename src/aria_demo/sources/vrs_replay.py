@@ -24,8 +24,10 @@ _TYPE_TO_SIGNAL = {
 
 def select_streams(
     provider: Any, signals: Iterable[Signal], rgb_label: str = RGB_LABEL
-) -> dict[Any, tuple[Signal, str]]:
-    """Map stream id -> (signal, label) for the streams that carry the wanted signals.
+) -> dict[str, tuple[Signal, str]]:
+    """Map str(stream id) -> (signal, label) for the streams that carry the wanted signals.
+
+    Keys are strings because the SDK's StreamId is not hashable.
 
     Only the RGB camera is selected among IMAGE streams (not SLAM or eye-tracking cameras).
     """
@@ -39,7 +41,7 @@ def select_streams(
         label = provider.get_label_from_stream_id(stream_id) or ""
         if signal is Signal.RGB and label != rgb_label:
             continue
-        selected[stream_id] = (signal, label)
+        selected[str(stream_id)] = (signal, label)
     return selected
 
 
@@ -67,8 +69,10 @@ def to_sample(sensor_data: Any, signal: Signal, label: str, t_ns: int) -> Sample
             pitch=float(g.pitch),
             depth_m=_finite_or_none(g.depth),
             valid=bool(getattr(g, "combined_gaze_valid", True)),
-            left_blink=bool(v.left_blink) if v is not None and v.left_blink_valid else None,
-            right_blink=bool(v.right_blink) if v is not None and v.right_blink_valid else None,
+            # Gen 2 on-device flags are True while the eye is OPEN (verified on s01_desk:
+            # True ~99% of samples, False in 3-4 sample bursts = blinks), so invert them.
+            left_blink=(not v.left_blink) if v is not None and v.left_blink_valid else None,
+            right_blink=(not v.right_blink) if v is not None and v.right_blink_valid else None,
         )
 
     if signal is Signal.PPG:
@@ -106,12 +110,13 @@ class VrsReplaySource:
         if self._provider is None:
             raise ValueError(f"Could not open VRS file: {self.path}")
         self._streams = select_streams(self._provider, signals, rgb_label)
+        self._stream_ids = [s for s in self._provider.get_all_streams() if str(s) in self._streams]
         if not self._streams:
             raise ValueError(f"No matching streams in {self.path} for {sorted(signals)}")
         self._pacer = Pacer(speed)
 
     @property
-    def streams(self) -> dict[Any, tuple[Signal, str]]:
+    def streams(self) -> dict[str, tuple[Signal, str]]:
         return dict(self._streams)
 
     def device_calibration(self) -> Any:
@@ -125,11 +130,11 @@ class VrsReplaySource:
 
         options = self._provider.get_default_deliver_queued_options()
         options.deactivate_stream_all()
-        for stream_id in self._streams:
+        for stream_id in self._stream_ids:
             options.activate_stream(stream_id)
 
         for sensor_data in self._provider.deliver_queued_sensor_data(options):
-            signal, label = self._streams[sensor_data.stream_id()]
+            signal, label = self._streams[str(sensor_data.stream_id())]
             t_ns = sensor_data.get_time_ns(TimeDomain.DEVICE_TIME)
             sample = to_sample(sensor_data, signal, label, t_ns)
             if sample is None:
