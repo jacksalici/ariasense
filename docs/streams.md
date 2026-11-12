@@ -61,7 +61,11 @@ This page records which signals we can actually use. It has two parts:
   - The laptop can't resolve the glasses' address on hermes (ARP "incomplete", no ping), so the network has **client isolation**: devices on it can't reach each other.
   - Retested with a stream started on the glasses themselves (`WIFI_STA`, glasses at `10.65.138.46`): still ARP "incomplete", and nothing reached the laptop. The phone hotspot itself isolates its clients.
   - Conclusion: `wifi_sta` needs a network that lets devices reach each other, such as your own router or travel router. This phone hotspot doesn't.
-- [ ] The glasses' own hotspot (`wifi_sap`): connects directly, so client isolation can't get in the way.
+- [x] **Wi-Fi works on a normal home network** ("ThePromisedLan", 2026-11-13). Laptop at `192.168.4.166`, glasses at `192.168.4.34`; ping replies in 45–155 ms.
+  - With devices able to reach each other, the stream goes over **Wi-Fi even while the cable is in**: 16 MB over Wi-Fi, 0 MB over USB. On the isolated hotspot it had fallen back to USB.
+  - **Unplugged and worn:** the stream kept running over Wi-Fi at ~1.3 MB/s. All streams arrived at full rate (RGB 10, gaze 30, PPG 128, IMU 200 Hz) and no new frames were skipped. Gaze, the attended object, heart rate (75 bpm), HRV, blinks and state (Focused) were all live.
+  - Latency was **~180–260 ms** over Wi-Fi, against ~110 ms over USB.
+- [ ] The glasses' own hotspot (`wifi_sap`), for venues without a suitable network. Not tested yet.
 
 ## 2. Per-recording reports
 

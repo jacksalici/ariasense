@@ -47,6 +47,13 @@ Then open http://127.0.0.1:8000.
 
 ## Wireless
 
+**Tested and working (2026-11-13):** a home Wi-Fi network. Start the dashboard with the glasses plugged in, then unplug and walk around: latency is ~200 ms, against ~110 ms over USB.
+
+```bash
+uv run aria-demo live --interface wifi_sta
+```
+
+
 **First check that the two devices can reach each other.** Many university and enterprise networks, and some phone hotspots (e.g. "hermes"), isolate clients, so the stream never arrives. With the laptop on the same network as the glasses, run:
 
 ```bash
@@ -55,7 +62,7 @@ ping -c 3 <glasses Wi-Fi IP>
 
 The glasses' Wi-Fi IP is shown by `uv run aria_gen2 device status`. If ping fails and `arp -an` lists the glasses as `(incomplete)`, the network isolates clients. Use the glasses' hotspot or your own router instead.
 
-While the USB cable is plugged in, the glasses stream over USB even with `--interface wifi_*`. Wi-Fi only carries the stream after you unplug. `aria-demo live` sets `keep_streaming_on_disconnection` for Wi-Fi interfaces, so the glasses keep streaming once unplugged. They also **keep streaming after you stop the dashboard**, until you plug them back in and run `uv run aria_gen2 streaming stop`, so mind the battery.
+If the two devices can reach each other, the glasses stream over Wi-Fi even with the cable still in. If they can't (e.g. on an isolating hotspot), the glasses fall back to USB while plugged in, and nothing arrives once you unplug. `aria-demo live` sets `keep_streaming_on_disconnection` for Wi-Fi interfaces, so the glasses keep streaming once unplugged. They also **keep streaming after you stop the dashboard**, until you plug them back in and run `uv run aria_gen2 streaming stop`, so mind the battery.
 
 
 USB is still needed to **start and stop** streaming. Once the stream is running, you can unplug the cable.
