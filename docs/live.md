@@ -62,7 +62,13 @@ ping -c 3 <glasses Wi-Fi IP>
 
 The glasses' Wi-Fi IP is shown by `uv run aria_gen2 device status`. If ping fails and `arp -an` lists the glasses as `(incomplete)`, the network isolates clients. Use the glasses' hotspot or your own router instead.
 
-If the two devices can reach each other, the glasses stream over Wi-Fi even with the cable still in. If they can't (e.g. on an isolating hotspot), the glasses fall back to USB while plugged in, and nothing arrives once you unplug. `aria-demo live` sets `keep_streaming_on_disconnection` for Wi-Fi interfaces, so the glasses keep streaming once unplugged. They also **keep streaming after you stop the dashboard**, until you plug them back in and run `uv run aria_gen2 streaming stop`, so mind the battery.
+If the two devices can reach each other, the glasses stream over Wi-Fi even with the cable still in. If they can't (e.g. on an isolating hotspot), the glasses fall back to USB while plugged in, and nothing arrives once you unplug. `aria-demo live` sets `keep_streaming_on_disconnection` for Wi-Fi interfaces, so the glasses keep streaming once unplugged. They also **keep streaming after you stop the dashboard**, so mind the battery. To stop them without the cable (works when the devices can reach each other, as on the home network), use the glasses' Wi-Fi IP from `aria_gen2 device status`:
+
+```bash
+uv run aria_gen2 --device-ip <glasses Wi-Fi IP> streaming stop
+```
+
+Plain `aria_gen2 streaming stop` only looks over USB, and reports "No devices found" when the glasses are unplugged.
 
 
 USB is still needed to **start and stop** streaming. Once the stream is running, you can unplug the cable.
