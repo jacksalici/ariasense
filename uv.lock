@@ -290,6 +290,7 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "lap" },
+    { name = "matplotlib" },
     { name = "numpy" },
     { name = "opencv-python" },
     { name = "projectaria-client-sdk" },
@@ -312,6 +313,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.162.5" },
     { name = "lap", specifier = ">=0.5.14" },
+    { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "numpy", specifier = ">=2.5.4" },
     { name = "opencv-python", specifier = ">=5.0.0.93" },
     { name = "projectaria-client-sdk", specifier = ">=2.5.1" },

@@ -44,6 +44,20 @@ uv run aria-demo detect data/s01_desk.vrs -o runs/s01_detect.mp4
 
 Weights are downloaded to `models/` on first use. Pick another model with `--model yolo26m.pt`. At the end, the command prints the time spent looking at each class.
 
+Compute physiological and eye features once per second, z-scored against a personal baseline. This is M3:
+
+```bash
+uv run aria-demo physio data/s01_desk.vrs -o runs/s01_features.csv --baseline 60
+```
+
+The output is a CSV of raw values and z-scores, plus a PNG with each feature plotted against the baseline band. The features are:
+- heart rate and HRV (RMSSD) from the PPG;
+- blink rate, blink duration and PERCLOS;
+- fixation duration, rate and ratio;
+- gaze dispersion;
+- head rotation and jerk;
+- ambient light.
+
 ## Development
 
 ```bash

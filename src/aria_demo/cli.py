@@ -119,5 +119,54 @@ def detect(
             typer.echo(f"  {name:<16} {secs:6.1f}s")
 
 
+@app.command()
+def physio(
+    vrs: VrsArg,
+    out: Annotated[Path, typer.Option("--out", "-o", help="Output CSV.")] = Path("runs/features.csv"),
+    plot_path: Annotated[
+        Path | None, typer.Option("--plot", help="Output PNG (default: next to CSV).")
+    ] = None,
+    baseline_s: Annotated[float, typer.Option("--baseline", help="Baseline duration (s).")] = 60.0,
+    step: Annotated[float, typer.Option(help="Seconds between feature vectors.")] = 1.0,
+) -> None:
+    """M3 checkpoint: heart rate, HRV, blinks, fixations, head motion -> CSV + plot."""
+    from aria_demo.sources.base import Signal
+    from aria_demo.sources.vrs_replay import VrsReplaySource
+    from aria_demo.state import report
+    from aria_demo.state.baseline import Baseline
+    from aria_demo.state.features import FEATURES, FeatureExtractor, extract
+
+    signals = {Signal.PPG, Signal.EYE_GAZE, Signal.IMU, Signal.ALS}
+    source = VrsReplaySource(vrs, signals=signals, speed=0)
+    rows = list(extract(source.samples(), FeatureExtractor(step_s=step)))
+    if not rows:
+        typer.secho("No feature vectors produced.", fg="red")
+        raise typer.Exit(1)
+
+    duration = (rows[-1].t_ns - rows[0].t_ns) / 1e9
+    if duration < baseline_s * 1.5:
+        baseline_s = duration / 2
+        typer.secho(
+            f"Recording is {duration:.0f} s: using the first {baseline_s:.0f} s as baseline.", fg="yellow"
+        )
+    baseline = Baseline.from_vectors(fv for fv in rows if (fv.t_ns - rows[0].t_ns) / 1e9 <= baseline_s)
+
+    report.write_csv(rows, baseline, out)
+    plot_path = plot_path or out.with_suffix(".png")
+    report.plot(rows, baseline, plot_path, baseline_end_s=baseline_s)
+    typer.echo(f"Wrote {len(rows)} feature vectors to {out} and {plot_path}")
+
+    typer.echo(f"\n{'feature':<16}{'baseline':>12}{'rest mean':>12}{'z':>8}")
+    rest = [fv for fv in rows if (fv.t_ns - rows[0].t_ns) / 1e9 > baseline_s]
+    for name in FEATURES:
+        vals = [v for fv in rest if (v := fv.get(name)) is not None]
+        if name not in baseline.mean or not vals:
+            typer.echo(f"{name:<16}{'-':>12}{'-':>12}{'-':>8}")
+            continue
+        m = float(sum(vals) / len(vals))
+        z = (m - baseline.mean[name]) / baseline.std[name]
+        typer.echo(f"{name:<16}{baseline.mean[name]:>12.3g}{m:>12.3g}{z:>8.2f}")
+
+
 if __name__ == "__main__":
     app()
