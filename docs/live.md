@@ -47,7 +47,7 @@ Then open http://127.0.0.1:8000.
 
 ## Wireless
 
-**First check that the two devices can reach each other.** Many university and enterprise networks (e.g. "hermes") isolate clients, so the stream never arrives. With the laptop on the same network as the glasses, run:
+**First check that the two devices can reach each other.** Many university and enterprise networks, and some phone hotspots (e.g. "hermes"), isolate clients, so the stream never arrives. With the laptop on the same network as the glasses, run:
 
 ```bash
 ping -c 3 <glasses Wi-Fi IP>
