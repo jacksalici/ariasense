@@ -37,14 +37,28 @@ def test_reorderer_releases_in_order_after_delay():
     assert [s.t_ns // MS for s in r.pop_ready(flush=True)] == [120, 200]
 
 
-def test_reorderer_drops_late_sensor_samples_but_passes_late_frames():
+def test_reorderer_passes_batches_late_against_other_streams():
+    """PPG/IMU arrive in batches up to ~1 s behind the other streams: keep them."""
+    r = Reorderer(delay_ns=0)
+    r.push(frame(100))
+    list(r.pop_ready())
+    r.push(ppg(50))  # behind the frame already released, but first of its own stream
+    r.push(ppg(60))
+    r.push(frame(60))  # older than a frame already shown: useless, dropped
+    assert r.late == 1
+    assert [(type(s).__name__, s.t_ns // MS) for s in r.pop_ready()] == [
+        ("PpgSample", 50),
+        ("PpgSample", 60),
+    ]
+
+
+def test_reorderer_drops_out_of_order_within_a_stream():
     r = Reorderer(delay_ns=0)
     r.push(ppg(100))
     list(r.pop_ready())
-    r.push(ppg(50))  # older than what was released: would break feature windows
-    r.push(frame(60))  # late video frame: still useful
+    r.push(ppg(50))  # older than what this stream already released: would break windows
     assert r.late == 1
-    assert [type(s) for s in r.pop_ready()] == [RgbFrame]
+    assert list(r.pop_ready()) == []
 
 
 # ---- StreamSource callbacks ----------------------------------------------------------

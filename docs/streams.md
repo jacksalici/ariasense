@@ -53,10 +53,14 @@ This page records which signals we can actually use. It has two parts:
   | calibration | yes, rescaled to the stream resolution | yes |
   | ALS | **no callback**, so `lux` is unavailable live | — |
 
-  - No samples were dropped.
-  - Capture-to-host latency (TicSync) was a median of **310 ms** (p95 316 ms) on both profiles.
-  - In the dashboard, capture to fully processed (decode, YOLO, JPEG) was ~370–390 ms.
-- [ ] Latency over Wi-Fi (`wifi_sta`) and over the hotspot (`wifi_sap`).
+  - PPG and IMU arrive in **batches up to ~1 s behind** the other streams. The reorder buffer now orders each stream on its own, so nothing is dropped.
+  - Capture-to-host latency (TicSync) is a median of **110 ms** (p95 118 ms). The first measurement, 310 ms, included a 0.3 s reorder hold, since reduced to 0.1 s.
+- [x] Wi-Fi (`wifi_sta`) on the "hermes" network, 2026-11-13:
+  - While the USB cable is plugged in, the glasses stream **over USB** whatever interface is requested (40 MB over USB, 1 MB over Wi-Fi).
+  - After unplugging (with `keep_streaming_on_disconnection`), USB traffic stopped and **no data arrived over Wi-Fi**.
+  - The laptop can't resolve the glasses' address on hermes (ARP "incomplete", no ping), so the network has **client isolation**: devices on it can't reach each other.
+  - Conclusion: `wifi_sta` needs a network without client isolation, such as your own router or a phone hotspot.
+- [ ] The glasses' own hotspot (`wifi_sap`): connects directly, so client isolation can't get in the way.
 
 ## 2. Per-recording reports
 

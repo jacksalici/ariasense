@@ -47,6 +47,17 @@ Then open http://127.0.0.1:8000.
 
 ## Wireless
 
+**First check that the two devices can reach each other.** Many university and enterprise networks (e.g. "hermes") isolate clients, so the stream never arrives. With the laptop on the same network as the glasses, run:
+
+```bash
+ping -c 3 <glasses Wi-Fi IP>
+```
+
+The glasses' Wi-Fi IP is shown by `uv run aria_gen2 device status`. If ping fails and `arp -an` lists the glasses as `(incomplete)`, the network isolates clients. Use the glasses' hotspot or your own router instead.
+
+While the USB cable is plugged in, the glasses stream over USB even with `--interface wifi_*`. Wi-Fi only carries the stream after you unplug. `aria-demo live` sets `keep_streaming_on_disconnection` for Wi-Fi interfaces, so the glasses keep streaming once unplugged. They also **keep streaming after you stop the dashboard**, until you plug them back in and run `uv run aria_gen2 streaming stop`, so mind the battery.
+
+
 USB is still needed to **start and stop** streaming. Once the stream is running, you can unplug the cable.
 
 **Your Wi-Fi.** A 5 GHz Wi-Fi 6 router with no firewall in the way is recommended. Connect the glasses to the network, then start streaming over it:

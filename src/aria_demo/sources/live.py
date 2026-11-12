@@ -40,12 +40,16 @@ class StreamStats:
 
 
 class Reorderer:
-    """Releases samples in timestamp order once they are `delay_ns` older than the newest seen.
+    """Merges the streams roughly in time order, keeping each stream strictly in order.
 
-    Sensor samples older than the last released one are dropped (counted in `late`):
-    they would break the feature windows. Late RGB frames are still released
-    straight away: decoding makes video lag behind the sensors, and a frame only
-    looks up gaze from the past, so its order does not matter.
+    Samples are held until they are `delay_ns` older than the newest seen, then
+    released in timestamp order. A sample that arrives after newer samples of
+    *other* streams were released is passed straight through instead of dropped:
+    consumers only need each stream to be in order (feature windows and gaze
+    lookups are per stream). On the glasses, PPG and IMU arrive in batches up to
+    ~1 s behind the other streams, even over USB; a global order dropped them.
+    Only a sample older than one already released *from its own stream* is
+    dropped (counted in `late`).
     """
 
     def __init__(self, delay_ns: int) -> None:
@@ -54,25 +58,33 @@ class Reorderer:
         self._seq = itertools.count()
         self._newest = -1
         self._released = -1
-        self._late_rgb: list[Sample] = []
+        self._released_by_type: dict[type, int] = {}
+        self._passthrough: list[Sample] = []
         self.late = 0
 
     def push(self, sample: Sample) -> None:
         if sample.t_ns < self._released:
-            if isinstance(sample, RgbFrame):
-                self._late_rgb.append(sample)
-            else:
-                self.late += 1
+            kind = type(sample)
+            if sample.t_ns < self._released_by_type.get(kind, -1):
+                self.late += 1  # out of order within its own stream
+                return
+            self._released_by_type[kind] = sample.t_ns
+            self._passthrough.append(sample)
             return
         heapq.heappush(self._heap, (sample.t_ns, next(self._seq), sample))
         self._newest = max(self._newest, sample.t_ns)
 
     def pop_ready(self, flush: bool = False) -> Iterator[Sample]:
-        late, self._late_rgb = self._late_rgb, []
-        yield from late
+        passthrough, self._passthrough = self._passthrough, []
+        yield from passthrough
         while self._heap and (flush or self._heap[0][0] <= self._newest - self.delay_ns):
             t, _, sample = heapq.heappop(self._heap)
+            kind = type(sample)
+            if t < self._released_by_type.get(kind, -1):
+                self.late += 1  # a passed-through sample of this stream was newer
+                continue
             self._released = t
+            self._released_by_type[kind] = t
             yield sample
 
     def __len__(self) -> int:
@@ -84,7 +96,7 @@ class StreamSource:
 
     def __init__(
         self,
-        reorder_delay_s: float = 0.3,
+        reorder_delay_s: float = 0.1,
         imu_label: str | None = None,
         imu_decimate: int = 4,
         calib_timeout_s: float = 15.0,
@@ -282,6 +294,11 @@ class LiveSource(StreamSource):
                 "wifi_sta": sdk_gen2.StreamingInterface.WIFI_STA,
                 "wifi_sap": sdk_gen2.StreamingInterface.WIFI_SAP,
             }[interface]
+            if interface != "usb":
+                # Keep streaming when the USB cable (needed to start) is pulled out.
+                # While the cable is in, the glasses stream over USB whatever interface
+                # is requested (seen on hermes: 16 MB over USB, 0.1 MB over Wi-Fi).
+                cfg.keep_streaming_on_disconnection = True
             self._device.set_streaming_config(cfg)
             # Start the device *before* the receiver, as the SDK sample does: starting
             # streaming (re)writes the streaming certificates the receiver then loads.
@@ -317,6 +334,13 @@ class LiveSource(StreamSource):
             try:
                 if self._device is not None:
                     self._device.stop_streaming()
+            except RuntimeError as exc:
+                # Typically the USB cable was pulled after a Wi-Fi start: the glasses
+                # keep streaming until stopped over USB.
+                print(
+                    f"[LiveSource] Could not stop streaming on the glasses ({exc}). "
+                    "Plug in USB and run: uv run aria_gen2 streaming stop"
+                )
             finally:
                 time.sleep(0.5)  # let in-flight messages land (and the VRS recorder flush)
                 self._receiver.stop_server()
