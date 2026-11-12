@@ -84,6 +84,22 @@ The dashboard shows:
 
 Controls: pause/resume (space bar), playback speed, Re-baseline, and a boxes toggle. By default the replay loops. Use `--no-loop` to play it once.
 
+### Live from the glasses (M6)
+
+Run the dashboard on the live stream from the glasses:
+
+```bash
+uv run aria-demo live --interface usb
+```
+
+Check which streams arrive, at what rate, and with what latency:
+
+```bash
+uv run aria-demo stream-check
+```
+
+To test the live code path without the glasses, feed a recording through it with `--replay data/s01_desk.vrs`. Setup for USB, Wi-Fi and the glasses' hotspot is in [docs/live.md](docs/live.md).
+
 ## Development
 
 ```bash

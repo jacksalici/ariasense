@@ -239,26 +239,168 @@ def dashboard(
     config: Annotated[Path, typer.Option(help="State config YAML.")] = Path("configs/state.yaml"),
     depth: DepthOpt = 1.0,
 ) -> None:
-    """M5: live web dashboard (video + gaze + YOLO, signals, estimated state)."""
+    """M5: web dashboard replaying a recording (video + gaze + YOLO, signals, estimated state)."""
+    from aria_demo.pipeline import vrs_source_factory
+
+    _serve(
+        vrs_source_factory(vrs, speed),
+        {"source": vrs.name, "mode": "replay"},
+        loop=loop,
+        port=port,
+        host=host,
+        baseline_s=baseline_s,
+        model=model,
+        imgsz=imgsz,
+        conf=conf,
+        config=config,
+        depth=depth,
+    )
+
+
+def _serve(
+    source_factory, info: dict, *, loop, port, host, baseline_s, model, imgsz, conf, config, depth
+) -> None:
     import uvicorn
 
     from aria_demo.dashboard.server import create_app
     from aria_demo.perception.detector import YoloDetector
-    from aria_demo.pipeline import DemoPipeline, vrs_source_factory
+    from aria_demo.pipeline import DemoPipeline
     from aria_demo.state.config import StateConfig
 
     detector = YoloDetector(model=model, conf=conf, imgsz=imgsz)
     pipeline = DemoPipeline(
-        vrs_source_factory(vrs, speed),
+        source_factory,
         detector,
         config=StateConfig.load(config),
         baseline_s=baseline_s,
         loop=loop,
         depth_m=depth,
     )
-    web = create_app(pipeline, info={"source": vrs.name, "model": model})
+    web = create_app(pipeline, info={**info, "model": model})
     typer.echo(f"Dashboard: http://{host}:{port}  (YOLO {model} on {detector.device})")
     uvicorn.run(web, host=host, port=port, log_level="warning")
+
+
+InterfaceOpt = Annotated[
+    str,
+    typer.Option(
+        help="usb, wifi_sta (glasses on your Wi-Fi) or wifi_sap (laptop joins the glasses' hotspot)."
+    ),
+]
+ProfileOpt = Annotated[str, typer.Option(help="Streaming profile on the glasses.")]
+SerialOpt = Annotated[str | None, typer.Option(help="Device serial (when several are plugged in).")]
+ControlOpt = Annotated[
+    bool,
+    typer.Option(help="Connect over USB and start/stop streaming. --no-control only listens."),
+]
+ReplayOpt = Annotated[
+    Path | None,
+    typer.Option(
+        exists=True, dir_okay=False, help="Feed a VRS through the SDK streaming path instead (no device)."
+    ),
+]
+
+
+def _live_factory(
+    replay: Path | None, interface: str, profile: str, serial: str | None, control: bool, record
+):
+    from aria_demo.pipeline import live_source_factory, sdk_replay_source_factory
+
+    if replay is not None:
+        return sdk_replay_source_factory(replay), {
+            "source": f"{replay.name} via SDK stream",
+            "mode": "sdk-replay",
+        }
+    factory = live_source_factory(
+        interface=interface, profile=profile, serial=serial, control_device=control, record_to=record
+    )
+    return factory, {"source": f"glasses · {interface} · {profile}", "mode": "live"}
+
+
+@app.command()
+def live(
+    interface: InterfaceOpt = "usb",
+    profile: ProfileOpt = "profile9",
+    serial: SerialOpt = None,
+    control: ControlOpt = True,
+    record: Annotated[Path | None, typer.Option(help="Also save the stream to this VRS file.")] = None,
+    replay: ReplayOpt = None,
+    port: Annotated[int, typer.Option(help="HTTP port.")] = 8000,
+    host: Annotated[str, typer.Option(help="Bind address (127.0.0.1 = this machine only).")] = "127.0.0.1",
+    baseline_s: Annotated[float, typer.Option("--baseline", help="Baseline duration (s).")] = 60.0,
+    model: Annotated[str, typer.Option(help="YOLO weights.")] = "yolo26s.pt",
+    imgsz: Annotated[int, typer.Option(help="YOLO inference size.")] = 640,
+    conf: Annotated[float, typer.Option(help="Detection confidence threshold.")] = 0.35,
+    config: Annotated[Path, typer.Option(help="State config YAML.")] = Path("configs/state.yaml"),
+    depth: DepthOpt = 1.0,
+) -> None:
+    """M6: the dashboard on the live stream from the glasses."""
+    factory, info = _live_factory(replay, interface, profile, serial, control, record)
+    _serve(
+        factory,
+        info,
+        loop=False,
+        port=port,
+        host=host,
+        baseline_s=baseline_s,
+        model=model,
+        imgsz=imgsz,
+        conf=conf,
+        config=config,
+        depth=depth,
+    )
+
+
+@app.command("stream-check")
+def stream_check(
+    seconds: Annotated[float, typer.Option(help="How long to stream.")] = 15.0,
+    interface: InterfaceOpt = "usb",
+    profile: ProfileOpt = "profile9",
+    serial: SerialOpt = None,
+    control: ControlOpt = True,
+    replay: ReplayOpt = None,
+) -> None:
+    """M6: which streams arrive live, at what rate, and with what latency (no YOLO, no UI)."""
+    import time
+
+    from aria_demo.pipeline import EXPECTED_STREAMS
+    from aria_demo.types import RgbFrame
+
+    factory, info = _live_factory(replay, interface, profile, serial, control, None)
+    source = factory()
+    typer.echo(f"Streaming from {info['source']} for {seconds:.0f} s…")
+    latencies: list[float] = []
+    try:
+        calib = source.device_calibration()
+        cam = calib.get_camera_calib("camera-rgb")
+        typer.echo(f"Calibration received (RGB {tuple(int(x) for x in cam.get_image_size())})")
+        deadline = time.monotonic() + seconds
+        for sample in source.samples():
+            if isinstance(sample, RgbFrame) and (ms := source.latency_ms(sample.t_ns)) is not None:
+                latencies.append(ms)
+            if time.monotonic() >= deadline:
+                break
+    finally:
+        source.close()
+
+    stats = source.stats()
+    typer.echo(f"\n{'stream':<10}{'samples':>9}{'rate Hz':>10}")
+    for name in sorted({*EXPECTED_STREAMS, *stats.counts}):
+        n = stats.counts.get(name, 0)
+        flag = "" if n else "   <- missing"
+        typer.echo(f"{name:<10}{n:>9}{stats.rates_hz.get(name, 0):>10.1f}{flag}")
+    typer.echo(
+        f"RGB frames dropped (processing behind): {stats.dropped_rgb}; "
+        f"late sensor samples: {stats.late_dropped}"
+    )
+    if latencies:
+        lat = sorted(latencies)
+        typer.echo(
+            f"Capture-to-host latency: median {lat[len(lat) // 2]:.0f} ms, "
+            f"p95 {lat[int(len(lat) * 0.95)]:.0f} ms"
+        )
+    else:
+        typer.echo("Latency: not available (TicSync not valid, or replay mode).")
 
 
 if __name__ == "__main__":

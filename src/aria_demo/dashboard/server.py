@@ -82,8 +82,7 @@ def create_app(pipeline: DemoPipeline, info: dict[str, Any] | None = None) -> Fa
         thread = threading.Thread(target=run_pipeline, name="aria-pipeline", daemon=True)
         thread.start()
         yield
-        pipeline.controls.stop.set()
-        pipeline.controls.paused = False
+        pipeline.shutdown()  # also stops the glasses' stream in live mode
         thread.join(timeout=5)
 
     app = FastAPI(title="Aria Gen 2 Demo", lifespan=lifespan)

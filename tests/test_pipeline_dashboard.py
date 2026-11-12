@@ -1,7 +1,6 @@
 """End-to-end pipeline and server tests with a fake source and detector (no SDK, no YOLO)."""
 
 import time
-from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -12,24 +11,11 @@ from aria_demo.perception.attention import AttentionState
 from aria_demo.pipeline import DemoPipeline, dwell_pseudo_z, encode_jpeg
 from aria_demo.sources.base import Pacer
 from aria_demo.types import Detection, EyeGazeSample, PpgSample, RgbFrame
+from tests.fakes import FakeCalibration
 
 SEC = 1_000_000_000
 W, H = 64, 48
 CUP = Detection("cup", 0.9, (10, 10, 50, 40), track_id=1)
-
-
-class FakeCalibration:
-    def get_device_version(self):
-        return SimpleNamespace(name="Gen2")
-
-    def get_camera_calib(self, label):
-        return SimpleNamespace(
-            get_image_size=lambda: (W, H),
-            project=lambda p: np.array([[W / 2 + 30 * p[0, 0] / p[2, 0]], [H / 2 + 30 * p[1, 0] / p[2, 0]]]),
-        )
-
-    def get_transform_cpf_sensor(self, label):
-        return SimpleNamespace(inverse=lambda: SimpleNamespace(to_matrix=lambda: np.eye(4)))
 
 
 class FakeSource:

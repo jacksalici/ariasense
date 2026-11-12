@@ -18,8 +18,9 @@
     <div class="controls">
       <span class="pill" id="conn">offline</span>
       <span class="pill" id="clock">t = 0.0 s</span>
+      <span class="pill" id="latency" hidden title="Capture to fully processed, via TicSync">— ms</span>
       <button id="pause" title="Pause / resume (space)">Pause</button>
-      <label class="select">Speed
+      <label class="select" id="speedBox">Speed
         <select id="speed">
           <option value="0.5">0.5×</option>
           <option value="1" selected>1×</option>
@@ -31,6 +32,8 @@
       <label class="toggle"><input type="checkbox" id="showBoxes" checked> boxes</label>
     </div>
   </header>
+
+  <div class="banner" id="banner" hidden></div>
 
   <main class="layout">
     <section class="video-col">

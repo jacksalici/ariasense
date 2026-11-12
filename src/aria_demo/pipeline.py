@@ -39,6 +39,8 @@ Emit = Callable[[Message], None]
 
 JPEG_WIDTH = 1280
 JPEG_QUALITY = 75
+EXPECTED_STREAMS = ("rgb", "eye_gaze", "ppg", "imu")
+HEALTH_EVERY_S = 5.0
 
 
 def dwell_pseudo_z(attention: AttentionState | None) -> float | None:
@@ -185,6 +187,15 @@ class DemoPipeline:
         self.baseline: Baseline | None = None
         self._baseline_t0: int | None = None
         self._speed: float | None = None
+        self._source: Any = None
+
+    def shutdown(self) -> None:
+        """Stop from another thread, even if a live stream has stalled (no samples to wake us)."""
+        self.controls.stop.set()
+        self.controls.paused = False
+        source = self._source
+        if source is not None and hasattr(source, "close"):
+            source.close()  # samples() then drains and returns
 
     # ---- helpers ----------------------------------------------------------
     def _new_baseline(self) -> None:
@@ -206,21 +217,41 @@ class DemoPipeline:
             time.sleep(0.05)
         if hasattr(source, "pacer"):
             source.pacer.rebase()
+        if hasattr(source, "flush"):
+            source.flush()  # live: drop what arrived while paused, continue in the present
         emit({"type": "status", "paused": False})
+
+    def _stream_health(self, source: Any, emit: Emit, elapsed_s: float) -> None:
+        """Live sources: report stream rates and warn about missing streams."""
+        stats = source.stats()
+        missing = [k for k in EXPECTED_STREAMS if stats.counts.get(k, 0) == 0] if elapsed_s >= 5 else []
+        emit(
+            {
+                "type": "status",
+                "streams": {k: round(v, 1) for k, v in stats.rates_hz.items()},
+                "missing_streams": missing,
+                "dropped_rgb": stats.dropped_rgb,
+                "idle_s": round(stats.idle_s, 1),
+            }
+        )
 
     # ---- main loop ----------------------------------------------------------
     def run(self, emit: Emit) -> None:
         self._new_baseline()
         loops = 0
         while not self.controls.stop.is_set():
-            source = self.source_factory()
-            if self._speed is not None and hasattr(source, "pacer"):
-                source.pacer.rebase(self._speed)  # keep a speed chosen in the UI across loops
-            projector = GazeProjector.from_device_calibration(
-                source.device_calibration(), default_depth_m=self.depth_m
-            )
-            emit({"type": "status", "loop": loops, "ended": False, "paused": False})
-            self._run_once(source, projector, emit)
+            source = self._source = self.source_factory()
+            try:
+                if self._speed is not None and hasattr(source, "pacer"):
+                    source.pacer.rebase(self._speed)  # keep a speed chosen in the UI across loops
+                projector = GazeProjector.from_device_calibration(
+                    source.device_calibration(), default_depth_m=self.depth_m
+                )
+                emit({"type": "status", "loop": loops, "ended": False, "paused": False})
+                self._run_once(source, projector, emit)
+            finally:
+                if hasattr(source, "close"):
+                    source.close()  # live: stop streaming and release the receiver port
             loops += 1
             if not self.loop or self.controls.stop.is_set():
                 break
@@ -271,9 +302,28 @@ class DemoPipeline:
                 yield s
 
         frames = gaze_frames(tapped(source.samples()), projector, self.trail_s)
-        for pf in perceive(frames, self.detector, tracker):
-            last_attention = pf.attention
-            emit(frame_message(pf, pf.frame.t_rel_s, self.encode(pf.frame.image)))
+        # Stream health runs on its own timer: it must keep reporting when the stream stalls.
+        done = threading.Event()
+        if hasattr(source, "stats"):
+            started = time.monotonic()
+
+            def health_loop() -> None:
+                while not done.wait(max(HEALTH_EVERY_S, 0.2)):
+                    self._stream_health(source, emit, time.monotonic() - started)
+
+            threading.Thread(target=health_loop, name="aria-health", daemon=True).start()
+
+        latency = getattr(source, "latency_ms", None)
+        try:
+            for pf in perceive(frames, self.detector, tracker):
+                last_attention = pf.attention
+                msg = frame_message(pf, pf.frame.t_rel_s, self.encode(pf.frame.image))
+                if latency is not None:
+                    # Capture -> fully processed (decode, YOLO, encode), measured with TicSync.
+                    msg["latency_ms"] = _r(latency(pf.frame.t_ns), 0)
+                emit(msg)
+        finally:
+            done.set()
 
 
 def vrs_source_factory(path: Path, speed: float) -> Callable[[], Any]:
@@ -281,3 +331,15 @@ def vrs_source_factory(path: Path, speed: float) -> Callable[[], Any]:
     from aria_demo.sources.vrs_replay import VrsReplaySource
 
     return lambda: VrsReplaySource(path, signals=ALL_SIGNALS, speed=speed)
+
+
+def live_source_factory(**kwargs: Any) -> Callable[[], Any]:
+    from aria_demo.sources.live import LiveSource
+
+    return lambda: LiveSource(**kwargs)
+
+
+def sdk_replay_source_factory(path: Path, speed: float = 1.0) -> Callable[[], Any]:
+    from aria_demo.sources.live import SdkReplaySource
+
+    return lambda: SdkReplaySource(path, speed=speed)

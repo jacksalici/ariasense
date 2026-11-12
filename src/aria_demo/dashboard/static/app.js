@@ -38,6 +38,7 @@ const S = {
   plane: [], // {t, arousal, attention}
   paused: false,
   showBoxes: true,
+  sourceLabel: "",
   lastT: 0,
 };
 
@@ -79,6 +80,13 @@ function onFrame(m) {
   $("clock").textContent = `t = ${m.t.toFixed(1)} s`;
   if (m.jpeg) S.image.src = `data:image/jpeg;base64,${m.jpeg}`;
   else drawVideo();
+
+  if (m.latency_ms !== undefined) {
+    const el = $("latency");
+    el.hidden = false;
+    el.textContent = m.latency_ms === null ? "latency —" : `latency ${m.latency_ms} ms`;
+    el.className = `pill ${m.latency_ms === null ? "" : m.latency_ms < 400 ? "ok" : m.latency_ms < 1000 ? "warn" : "bad"}`;
+  }
 
   const a = m.attended;
   $("lookingObj").textContent = a ? a.cls : "—";
@@ -346,6 +354,24 @@ function onStatus(m) {
     $("pause").textContent = m.paused ? "Resume" : "Pause";
   }
   if ("speed" in m) $("speed").value = String(m.speed);
+  if ("missing_streams" in m) {
+    const effects = {
+      ppg: "heart rate & HRV unavailable",
+      eye_gaze: "no gaze: attention & blinks unavailable",
+      rgb: "no camera video",
+      imu: "head motion & startle unavailable",
+    };
+    const missing = m.missing_streams.map((s) => `${s} (${effects[s] || "missing"})`);
+    const notes = [];
+    if (m.idle_s >= 3) notes.push(`No data from the glasses for ${Math.round(m.idle_s)} s — check the connection.`);
+    if (missing.length) notes.push(`Not receiving: ${missing.join(" · ")}. Check the streaming profile.`);
+    $("banner").hidden = !notes.length;
+    $("banner").textContent = notes.join("  ");
+  }
+  if (m.streams) {
+    const rates = Object.entries(m.streams).map(([k, v]) => `${k} ${Math.round(v)} Hz`).join(" · ");
+    $("source").textContent = `${S.sourceLabel} · ${rates}${m.dropped_rgb ? ` · ${m.dropped_rgb} frames skipped` : ""}`;
+  }
   if (m.error) toast(`Pipeline error: ${m.error}`);
   else if (m.ended) toast("Replay finished.", 4000);
   if ("loop" in m && m.loop > 0) resetHistory();
@@ -429,8 +455,10 @@ function connect() {
 async function loadInfo() {
   try {
     const info = await (await fetch("/api/info")).json();
-    $("source").textContent = `${info.source || "source"} · baseline ${info.baseline_s}s${info.loop ? " · looping" : ""}`;
+    S.sourceLabel = `${info.source || "source"} · baseline ${info.baseline_s}s${info.loop ? " · looping" : ""}`;
+    $("source").textContent = S.sourceLabel;
     S.paused = info.paused;
+    $("speedBox").hidden = info.mode !== "replay"; // speed only applies to file replay
   } catch {
     $("source").textContent = "info unavailable";
   }

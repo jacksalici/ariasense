@@ -6,11 +6,10 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-
 from aria_demo.calibration.projection import RGB_LABEL
+from aria_demo.sources import convert
 from aria_demo.sources.base import ALL_SIGNALS, Pacer, Signal
-from aria_demo.types import AlsSample, EyeGazeSample, ImuSample, PpgSample, RgbFrame, Sample
+from aria_demo.types import Sample
 
 # SDK sensor-data type name -> our signal.
 _TYPE_TO_SIGNAL = {
@@ -45,51 +44,19 @@ def select_streams(
     return selected
 
 
-def _finite_or_none(x: float) -> float | None:
-    return float(x) if np.isfinite(x) and x > 0 else None
-
-
 def to_sample(sensor_data: Any, signal: Signal, label: str, t_ns: int) -> Sample | None:
     """Convert one SDK SensorData into our typed sample (None if unusable)."""
     if signal is Signal.RGB:
         image_data, _record = sensor_data.image_data_and_record()
-        if not image_data.is_valid():
-            return None
-        image = image_data.to_numpy_array()
-        if image.ndim == 2:  # grayscale fallback
-            image = np.repeat(image[..., None], 3, axis=2)
-        return RgbFrame(t_ns=t_ns, image=image)
-
+        return convert.rgb_frame(image_data, t_ns)
     if signal is Signal.EYE_GAZE:
-        g = sensor_data.eye_gaze_data()
-        v = getattr(g, "vergence", None)
-        return EyeGazeSample(
-            t_ns=t_ns,
-            yaw=float(g.yaw),
-            pitch=float(g.pitch),
-            depth_m=_finite_or_none(g.depth),
-            valid=bool(getattr(g, "combined_gaze_valid", True)),
-            # Gen 2 on-device flags are True while the eye is OPEN (verified on s01_desk:
-            # True ~99% of samples, False in 3-4 sample bursts = blinks), so invert them.
-            left_blink=(not v.left_blink) if v is not None and v.left_blink_valid else None,
-            right_blink=(not v.right_blink) if v is not None and v.right_blink_valid else None,
-        )
-
+        return convert.eye_gaze_sample(sensor_data.eye_gaze_data(), t_ns)
     if signal is Signal.PPG:
-        return PpgSample(t_ns=t_ns, value=float(sensor_data.ppg_data().value))
-
+        return convert.ppg_sample(sensor_data.ppg_data(), t_ns)
     if signal is Signal.ALS:
-        return AlsSample(t_ns=t_ns, lux=float(sensor_data.als_data().lux))
-
+        return convert.als_sample(sensor_data.als_data(), t_ns)
     if signal is Signal.IMU:
-        m = sensor_data.imu_data()
-        return ImuSample(
-            t_ns=t_ns,
-            label=label,
-            accel=np.asarray(m.accel_msec2, dtype=float),
-            gyro=np.asarray(m.gyro_radsec, dtype=float),
-        )
-
+        return convert.imu_sample(sensor_data.imu_data(), label, t_ns)
     return None
 
 
