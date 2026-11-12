@@ -225,5 +225,41 @@ def states(
         typer.echo("\n" + evaluate(estimates, segments, t0).table())
 
 
+@app.command()
+def dashboard(
+    vrs: VrsArg,
+    port: Annotated[int, typer.Option(help="HTTP port.")] = 8000,
+    host: Annotated[str, typer.Option(help="Bind address (127.0.0.1 = this machine only).")] = "127.0.0.1",
+    speed: Annotated[float, typer.Option(help="Replay speed (1 = real time).")] = 1.0,
+    loop: Annotated[bool, typer.Option(help="Restart the replay when it ends.")] = True,
+    baseline_s: Annotated[float, typer.Option("--baseline", help="Baseline duration (s).")] = 60.0,
+    model: Annotated[str, typer.Option(help="YOLO weights.")] = "yolo26s.pt",
+    imgsz: Annotated[int, typer.Option(help="YOLO inference size.")] = 640,
+    conf: Annotated[float, typer.Option(help="Detection confidence threshold.")] = 0.35,
+    config: Annotated[Path, typer.Option(help="State config YAML.")] = Path("configs/state.yaml"),
+    depth: DepthOpt = 1.0,
+) -> None:
+    """M5: live web dashboard (video + gaze + YOLO, signals, estimated state)."""
+    import uvicorn
+
+    from aria_demo.dashboard.server import create_app
+    from aria_demo.perception.detector import YoloDetector
+    from aria_demo.pipeline import DemoPipeline, vrs_source_factory
+    from aria_demo.state.config import StateConfig
+
+    detector = YoloDetector(model=model, conf=conf, imgsz=imgsz)
+    pipeline = DemoPipeline(
+        vrs_source_factory(vrs, speed),
+        detector,
+        config=StateConfig.load(config),
+        baseline_s=baseline_s,
+        loop=loop,
+        depth_m=depth,
+    )
+    web = create_app(pipeline, info={"source": vrs.name, "model": model})
+    typer.echo(f"Dashboard: http://{host}:{port}  (YOLO {model} on {detector.device})")
+    uvicorn.run(web, host=host, port=port, log_level="warning")
+
+
 if __name__ == "__main__":
     app()

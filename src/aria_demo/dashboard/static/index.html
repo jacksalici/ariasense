@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aria Gen 2 Demo</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"></span>
+      <div>
+        <h1>Aria Gen 2 <span class="muted">· wearer state</span></h1>
+        <p class="sub" id="source">connecting…</p>
+      </div>
+    </div>
+    <div class="controls">
+      <span class="pill" id="conn">offline</span>
+      <span class="pill" id="clock">t = 0.0 s</span>
+      <button id="pause" title="Pause / resume (space)">Pause</button>
+      <label class="select">Speed
+        <select id="speed">
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
+      <button id="rebaseline" title="Start a new personal baseline">Re-baseline</button>
+      <label class="toggle"><input type="checkbox" id="showBoxes" checked> boxes</label>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="video-col">
+      <div class="panel stage">
+        <canvas id="video"></canvas>
+        <div class="stage-empty" id="stageEmpty">Waiting for the first frame…</div>
+        <div class="looking" id="looking">
+          <span class="looking-label">looking at</span>
+          <span class="looking-obj" id="lookingObj">—</span>
+          <span class="looking-dwell" id="lookingDwell"></span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Attention by object</h2><span class="muted" id="switches"></span></div>
+        <div id="attnBars" class="bars"><p class="muted small">No attended objects yet.</p></div>
+      </div>
+    </section>
+
+    <section class="side-col">
+      <div class="panel state-card" id="stateCard">
+        <div class="panel-head"><h2>Estimated state</h2><span class="muted small">not a measured emotion</span></div>
+        <div class="state-name" id="stateName">Calibrating</div>
+        <div class="meter"><div class="meter-fill" id="confFill"></div></div>
+        <div class="state-meta"><span id="confText">—</span><span id="candidate" class="muted"></span></div>
+        <ul class="reasons" id="reasons"></ul>
+        <div class="calib" id="calib">
+          <div class="muted small">Building your personal baseline — sit still and relax.</div>
+          <div class="meter"><div class="meter-fill calib-fill" id="calibFill"></div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Arousal × attention</h2><span class="muted small">z vs baseline</span></div>
+        <canvas id="plane" class="plane"></canvas>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Signals</h2><span class="muted small">band = baseline ± 1 sd</span></div>
+        <div id="signals" class="signals"></div>
+      </div>
+    </section>
+
+    <section class="panel timeline-panel">
+      <div class="panel-head"><h2>State timeline</h2><div class="legend" id="legend"></div></div>
+      <canvas id="timeline" class="timeline"></canvas>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -19,6 +19,7 @@ runs/
 # Local Claude settings
 CLAUDE.local.md
 .claude/settings.local.json
+.claude/launch.json
 
 # OS
 .DS_Store

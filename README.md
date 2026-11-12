@@ -66,6 +66,24 @@ uv run aria-demo states data/s02_states.vrs --labels data/s02_states_labels.csv
 
 The rules and thresholds live in [configs/state.yaml](configs/state.yaml). With `--labels`, the command also prints a confusion matrix; see [docs/protocol.md](docs/protocol.md). These are *estimated* physiological and attentional states, not measured emotions.
 
+### Dashboard (M5)
+
+Replay a recording through the full pipeline and open the dashboard at http://127.0.0.1:8000:
+
+```bash
+uv run aria-demo dashboard data/s01_desk.vrs --baseline 60
+```
+
+The dashboard shows:
+- the camera view, with the gaze dot and trail, YOLO boxes, and the object you're looking at with its dwell time;
+- the estimated state, with its confidence and reasons;
+- an arousal × attention plane;
+- live signal charts against the baseline band;
+- attention time per object;
+- a state timeline.
+
+Controls: pause/resume (space bar), playback speed, Re-baseline, and a boxes toggle. By default the replay loops. Use `--no-loop` to play it once.
+
 ## Development
 
 ```bash

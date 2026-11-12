@@ -116,6 +116,11 @@ class VrsReplaySource:
         self._pacer = Pacer(speed)
 
     @property
+    def pacer(self) -> Pacer:
+        """Exposed so a UI can pause (rebase) or change the playback speed."""
+        return self._pacer
+
+    @property
     def streams(self) -> dict[str, tuple[Signal, str]]:
         return dict(self._streams)
 

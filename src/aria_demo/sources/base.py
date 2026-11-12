@@ -49,6 +49,12 @@ class Pacer:
         self._t0_ns: int | None = None
         self._wall0 = 0.0
 
+    def rebase(self, speed: float | None = None) -> None:
+        """Restart pacing from the next sample (after a pause or a speed change)."""
+        if speed is not None:
+            self.speed = speed
+        self._t0_ns = None
+
     def wait_until(self, t_ns: int) -> None:
         if self.speed <= 0:
             return
