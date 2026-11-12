@@ -1,0 +1,44 @@
+[project]
+name = "aria-demo"
+version = "0.1.0"
+description = "Aria Gen 2 demo: gaze-attended YOLO detections and estimated wearer state"
+readme = "README.md"
+authors = [
+    { name = "Giacomo Salici", email = "giacomo.salici@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.162.5",
+    "numpy>=2.5.4",
+    "projectaria-client-sdk>=2.5.1",
+    "projectaria-tools>=2.3.0",
+    "pydantic>=2.14.3",
+    "pyyaml>=6.0.3",
+    "scipy>=1.18.1",
+    "typer>=0.29.1",
+    "ultralytics>=8.4.211",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+aria-demo = "aria_demo.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.5",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
