@@ -1,0 +1,39 @@
+# State estimator settings. Edit and re-run; no code changes needed.
+# Values are in baseline z-units (std from the personal baseline) unless named otherwise.
+
+# Axis = weighted mean of clipped z-scores of the available features.
+# Negative weight: lower than baseline pushes the axis up.
+arousal_weights:
+  hr_bpm: 1.0
+  rmssd_ms: -0.7        # HRV drops under stress
+  head_gyro_rms: 0.3
+attention_weights:
+  fix_dur_ms: 1.0       # longer fixations
+  fix_ratio: 0.7        # more time fixating
+  gaze_disp_deg: -1.0   # gaze stays in a smaller area
+  blink_rate_pm: -0.3   # blinks are suppressed while concentrating
+  object_dwell_s: 0.5   # only when YOLO attention is available
+
+z_clip: 4.0
+smoothing_s: 5.0        # EMA time constant (s) for the two axes
+min_state_s: 3.0        # a new state must persist this long before it is shown
+
+thresholds:
+  focused_attention: 0.8
+  focused_max_arousal: 1.5
+  stressed_arousal: 1.2
+  stressed_sustain_s: 20.0   # arousal averaged over this window
+  distracted_attention: -0.8
+  calm_max_arousal: 0.5
+  fatigue_perclos_z: 2.0
+  fatigue_blink_dur_z: 1.5
+  fatigue_max_arousal: 0.5
+
+# Startle: head-motion spike followed by a fast heart-rate rise.
+# On s01_desk, ordinary desk movement reached z 3.2 and the 3-beat HR wobbled ±6 bpm.
+startle:
+  motion_z: 4.0
+  hr_rise_bpm: 8.0
+  confirm_n: 2          # rise must hold for this many consecutive estimates
+  window_s: 6.0
+  hold_s: 5.0

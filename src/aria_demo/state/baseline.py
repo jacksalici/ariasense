@@ -11,6 +11,7 @@ from aria_demo.state.features import FeatureVector
 # Minimum std per feature, so a very steady baseline does not turn noise into huge z-scores.
 MIN_STD: dict[str, float] = {
     "hr_bpm": 2.0,
+    "hr_fast_bpm": 3.0,
     "rmssd_ms": 5.0,
     "ppg_quality": 0.05,
     "blink_rate_pm": 2.0,

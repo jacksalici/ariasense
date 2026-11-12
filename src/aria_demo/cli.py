@@ -119,22 +119,12 @@ def detect(
             typer.echo(f"  {name:<16} {secs:6.1f}s")
 
 
-@app.command()
-def physio(
-    vrs: VrsArg,
-    out: Annotated[Path, typer.Option("--out", "-o", help="Output CSV.")] = Path("runs/features.csv"),
-    plot_path: Annotated[
-        Path | None, typer.Option("--plot", help="Output PNG (default: next to CSV).")
-    ] = None,
-    baseline_s: Annotated[float, typer.Option("--baseline", help="Baseline duration (s).")] = 60.0,
-    step: Annotated[float, typer.Option(help="Seconds between feature vectors.")] = 1.0,
-) -> None:
-    """M3 checkpoint: heart rate, HRV, blinks, fixations, head motion -> CSV + plot."""
+def _features_and_baseline(vrs: Path, baseline_s: float, step: float):
+    """Feature vectors for the whole recording + a baseline from its first `baseline_s`."""
     from aria_demo.sources.base import Signal
     from aria_demo.sources.vrs_replay import VrsReplaySource
-    from aria_demo.state import report
     from aria_demo.state.baseline import Baseline
-    from aria_demo.state.features import FEATURES, FeatureExtractor, extract
+    from aria_demo.state.features import FeatureExtractor, extract
 
     signals = {Signal.PPG, Signal.EYE_GAZE, Signal.IMU, Signal.ALS}
     source = VrsReplaySource(vrs, signals=signals, speed=0)
@@ -150,7 +140,24 @@ def physio(
             f"Recording is {duration:.0f} s: using the first {baseline_s:.0f} s as baseline.", fg="yellow"
         )
     baseline = Baseline.from_vectors(fv for fv in rows if (fv.t_ns - rows[0].t_ns) / 1e9 <= baseline_s)
+    return rows, baseline, baseline_s
 
+
+@app.command()
+def physio(
+    vrs: VrsArg,
+    out: Annotated[Path, typer.Option("--out", "-o", help="Output CSV.")] = Path("runs/features.csv"),
+    plot_path: Annotated[
+        Path | None, typer.Option("--plot", help="Output PNG (default: next to CSV).")
+    ] = None,
+    baseline_s: Annotated[float, typer.Option("--baseline", help="Baseline duration (s).")] = 60.0,
+    step: Annotated[float, typer.Option(help="Seconds between feature vectors.")] = 1.0,
+) -> None:
+    """M3 checkpoint: heart rate, HRV, blinks, fixations, head motion -> CSV + plot."""
+    from aria_demo.state import report
+    from aria_demo.state.features import FEATURES
+
+    rows, baseline, baseline_s = _features_and_baseline(vrs, baseline_s, step)
     report.write_csv(rows, baseline, out)
     plot_path = plot_path or out.with_suffix(".png")
     report.plot(rows, baseline, plot_path, baseline_end_s=baseline_s)
@@ -166,6 +173,56 @@ def physio(
         m = float(sum(vals) / len(vals))
         z = (m - baseline.mean[name]) / baseline.std[name]
         typer.echo(f"{name:<16}{baseline.mean[name]:>12.3g}{m:>12.3g}{z:>8.2f}")
+
+
+@app.command()
+def states(
+    vrs: VrsArg,
+    out: Annotated[Path, typer.Option("--out", "-o", help="Output CSV timeline.")] = Path("runs/states.csv"),
+    labels: Annotated[
+        Path | None, typer.Option(exists=True, help="Labelled segments CSV: start_s,end_s,label.")
+    ] = None,
+    config: Annotated[Path, typer.Option(help="State config YAML.")] = Path("configs/state.yaml"),
+    baseline_s: Annotated[float, typer.Option("--baseline", help="Baseline duration (s).")] = 60.0,
+    step: Annotated[float, typer.Option(help="Seconds between estimates.")] = 1.0,
+) -> None:
+    """M4: estimated state per second (+ evaluation against labelled segments)."""
+    from aria_demo.state import report
+    from aria_demo.state.config import StateConfig
+    from aria_demo.state.estimator import StateEstimator
+    from aria_demo.state.evaluate import evaluate, load_labels
+
+    rows, baseline, baseline_s = _features_and_baseline(vrs, baseline_s, step)
+    estimator = StateEstimator(StateConfig.load(config), baseline)
+    t0 = rows[0].t_ns
+    estimates = [estimator.update(fv) for fv in rows if (fv.t_ns - t0) / 1e9 > baseline_s]
+    if not estimates:
+        typer.secho("Nothing left after the baseline.", fg="red")
+        raise typer.Exit(1)
+
+    segments = load_labels(labels) if labels else None
+    report.write_states_csv(estimates, t0, out)
+    plot_path = out.with_suffix(".png")
+    report.plot_states(estimates, t0, plot_path, segments)
+    typer.echo(f"Wrote {len(estimates)} estimates to {out} and {plot_path}\n")
+
+    counts: dict[str, int] = {}
+    for e in estimates:
+        counts[e.state.value] = counts.get(e.state.value, 0) + 1
+    typer.echo(
+        "Time per state: " + ", ".join(f"{k} {v}s" for k, v in sorted(counts.items(), key=lambda kv: -kv[1]))
+    )
+    previous = None
+    for e in estimates:
+        if e.state != previous:
+            reasons = "; ".join(e.reasons) or "-"
+            typer.echo(
+                f"  t={(e.t_ns - t0) / 1e9:6.1f}s  {e.state.value:<11} ({e.confidence:.0%})  {reasons}"
+            )
+            previous = e.state
+
+    if segments:
+        typer.echo("\n" + evaluate(estimates, segments, t0).table())
 
 
 if __name__ == "__main__":

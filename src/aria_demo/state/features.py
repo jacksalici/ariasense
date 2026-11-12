@@ -16,6 +16,7 @@ from aria_demo.types import AlsSample, EyeGazeSample, ImuSample, PpgSample, Samp
 # Feature name -> human-readable description (and the column order of reports).
 FEATURES: dict[str, str] = {
     "hr_bpm": "Heart rate (bpm)",
+    "hr_fast_bpm": "Instant heart rate, last 3 beats (bpm)",
     "rmssd_ms": "HRV, RMSSD (ms)",
     "ppg_quality": "PPG beat quality (0-1)",
     "blink_rate_pm": "Blinks per minute",
@@ -101,6 +102,7 @@ class FeatureExtractor:
             t = np.array([s.t_ns for s in ppg], dtype=float) / 1e9
             heart = estimate_heart(t, np.array([s.value for s in ppg]), hr_window_s=self.w.hr_s)
             v["hr_bpm"], v["rmssd_ms"], v["ppg_quality"] = heart.hr_bpm, heart.rmssd_ms, heart.quality
+            v["hr_fast_bpm"] = heart.hr_fast_bpm
 
         eye = eye_stats(self._gaze.since(t_ns - int(self.w.eye_s * 1e9)))
         if eye is not None:

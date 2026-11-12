@@ -58,6 +58,14 @@ The output is a CSV of raw values and z-scores, plus a PNG with each feature plo
 - head rotation and jerk;
 - ambient light.
 
+Estimate a state each second: Calm, Focused, Distracted, Stressed, Fatigued, or a Startled event. Each estimate comes with its confidence and the reasons behind it. This is M4:
+
+```bash
+uv run aria-demo states data/s02_states.vrs --labels data/s02_states_labels.csv
+```
+
+The rules and thresholds live in [configs/state.yaml](configs/state.yaml). With `--labels`, the command also prints a confusion matrix; see [docs/protocol.md](docs/protocol.md). These are *estimated* physiological and attentional states, not measured emotions.
+
 ## Development
 
 ```bash

@@ -9,6 +9,8 @@ from pathlib import Path
 import numpy as np
 
 from aria_demo.state.baseline import Baseline
+from aria_demo.state.estimator import StateEstimate
+from aria_demo.state.evaluate import Segment
 from aria_demo.state.features import FEATURES, FeatureVector
 
 PLOTTED = [
@@ -71,5 +73,88 @@ def plot(
     title += f", baseline = first {baseline_end_s:.0f} s)" if baseline_end_s else ")"
     axes[0].set_title(title, fontsize=10)
     fig.tight_layout()
+    fig.savefig(path, dpi=90)
+    plt.close(fig)
+
+
+STATE_COLORS = {
+    "Calibrating": "#e5e7eb",
+    "Neutral": "#cbd5e1",
+    "Calm": "#22c55e",
+    "Focused": "#3b82f6",
+    "Distracted": "#f59e0b",
+    "Stressed": "#ef4444",
+    "Fatigued": "#8b5cf6",
+    "Startled": "#111827",
+}
+
+
+def write_states_csv(estimates: Sequence[StateEstimate], t0_ns: int, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["t_s", "state", "confidence", "arousal", "attention", "candidate", "reasons"])
+        for e in estimates:
+            w.writerow(
+                [
+                    f"{(e.t_ns - t0_ns) / 1e9:.2f}",
+                    e.state.value,
+                    f"{e.confidence:.2f}",
+                    _fmt(e.arousal),
+                    _fmt(e.attention),
+                    e.candidate.value,
+                    "; ".join(e.reasons),
+                ]
+            )
+
+
+def _ribbon(ax, times: np.ndarray, names: Sequence[str], label: str) -> None:
+    for i, name in enumerate(names):
+        t_end = times[i + 1] if i + 1 < len(times) else times[i] + 1
+        ax.axvspan(times[i], t_end, color=STATE_COLORS.get(name, "#9ca3af"), lw=0)
+    ax.set_yticks([])
+    ax.set_ylabel(label, rotation=0, ha="right", va="center", fontsize=9)
+
+
+def plot_states(
+    estimates: Sequence[StateEstimate],
+    t0_ns: int,
+    path: Path,
+    labels: Sequence[Segment] | None = None,
+) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    t = np.array([(e.t_ns - t0_ns) / 1e9 for e in estimates])
+    rows = 3 if labels else 2
+    fig, axes = plt.subplots(
+        rows, 1, figsize=(11, 4.5), sharex=True, gridspec_kw={"height_ratios": [1] * (rows - 1) + [3]}
+    )
+    _ribbon(axes[0], t, [e.state.value for e in estimates], "estimated")
+    if labels:
+        ax = axes[1]
+        for seg in labels:
+            ax.axvspan(seg.start_s, seg.end_s, color=STATE_COLORS[seg.label.value], lw=0)
+        ax.set_yticks([])
+        ax.set_ylabel("labelled", rotation=0, ha="right", va="center", fontsize=9)
+
+    ax = axes[-1]
+    for attr, color in (("arousal", "#ef4444"), ("attention", "#3b82f6")):
+        y = np.array([np.nan if getattr(e, attr) is None else getattr(e, attr) for e in estimates])
+        ax.plot(t, y, color=color, lw=1.6, label=attr)
+    ax.axhline(0, color="#64748b", lw=0.8, ls="--")
+    ax.set_ylabel("z (vs baseline)")
+    ax.set_xlabel("time (s)")
+    ax.grid(alpha=0.3)
+    ax.legend(loc="upper left", fontsize=8)
+
+    present = list(dict.fromkeys([e.state.value for e in estimates] + [s.label.value for s in labels or []]))
+    handles = [Patch(color=STATE_COLORS[n], label=n) for n in present]
+    fig.legend(handles=handles, loc="upper center", ncol=len(handles), fontsize=8, frameon=False)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(path, dpi=90)
     plt.close(fig)

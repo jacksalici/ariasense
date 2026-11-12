@@ -30,9 +30,11 @@ class HeartEstimate:
     rmssd_ms: float | None
     quality: float  # fraction of IBIs kept after artefact rejection (0–1)
     n_beats: int
+    hr_fast_bpm: float | None = None  # last 3 valid beats: reacts within seconds (startle)
 
 
 NO_ESTIMATE = HeartEstimate(None, None, 0.0, 0)
+FAST_BEATS = 3
 
 
 def filter_ppg(values: np.ndarray, fs: float = FS_HZ) -> np.ndarray:
@@ -95,8 +97,10 @@ def estimate_heart(
 
     recent = ok & (beats[1:] >= t_s[-1] - hr_window_s)
     hr = 60.0 / float(np.median(ibi[recent])) if recent.sum() >= 2 else None
+    last_ok = ibi[ok][-FAST_BEATS:]
+    hr_fast = 60.0 / float(np.mean(last_ok)) if len(last_ok) == FAST_BEATS else None
 
     successive = ok[1:] & ok[:-1]
     diffs = np.diff(ibi)[successive]
     rmssd = 1000.0 * float(np.sqrt(np.mean(diffs**2))) if len(diffs) >= 5 else None
-    return HeartEstimate(hr, rmssd, quality, len(beats))
+    return HeartEstimate(hr, rmssd, quality, len(beats), hr_fast)
