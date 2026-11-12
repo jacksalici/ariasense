@@ -3,6 +3,7 @@
 ## Git
 
 - **Never add yourself as co-author.** Do not add `Co-Authored-By: Claude …` or any other AI attribution lines to commit messages or PR descriptions.
+- Commit message first line: `[type] short summary`, with a semantic type in square brackets and no milestone prefix (no `M0:`/`M1:`…). Types: `[feat]`, `[fix]`, `[docs]`, `[test]`, `[refactor]`, `[chore]`, `[perf]`. Example: `[feat] live web dashboard`.
 - Commit only milestones (code, tests, docs). Never commit `.plan/`, which holds the private working plan and is gitignored.
 - When a milestone is committed, update its row in `.plan/PLAN.md` (status + commit hash).
 
