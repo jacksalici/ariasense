@@ -20,8 +20,9 @@ def frame(t_ms):
 
 
 def center_projector():
-    # Straight gaze lands on raw pixel (20, 10); after upright rotation -> (H-1-10, 20) = (37, 20).
-    return GazeProjector(np.eye(4), lambda p: np.array([20.0, 10.0]), (W, H), rotate_upright=True)
+    # Gaze lands on raw pixel (40, 5); after upright rotation -> (H-1-5, 40) = (42, 40),
+    # below the status label in the top-left corner.
+    return GazeProjector(np.eye(4), lambda p: np.array([40.0, 5.0]), (W, H), rotate_upright=True)
 
 
 def test_history_lookup_and_window():
@@ -43,7 +44,7 @@ def test_render_draws_dot_at_projected_pixel_and_counts():
     assert len(out) == 3
     t, img = out[0]
     assert t == 10 * MS and img.shape == (W, H, 3)  # upright
-    assert tuple(img[20, 37]) == DOT_COLOR
+    assert tuple(img[40, 42]) == DOT_COLOR
     assert stats.frames == 3
     assert stats.frames_with_gaze == 2  # frame(200) has no gaze within 60 ms
     assert stats.frames_gaze_in_image == 1  # frame(30): latest gaze is invalid

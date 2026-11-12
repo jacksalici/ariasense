@@ -6,6 +6,7 @@ import pytest
 from aria_demo.calibration.projection import (
     GazeProjector,
     gaze_point_cpf,
+    needs_upright_rotation,
     rotate_pixel_cw90,
     upright,
 )
@@ -81,7 +82,17 @@ def test_from_device_calibration_with_sdk_camera():
     assert (u, v) == pytest.approx((cx, cy))
 
 
+@pytest.mark.parametrize("version,expected", [("Gen1", True), ("Gen2", False)])
+def test_rotation_only_for_gen1(version, expected):
+    device = SimpleNamespace(get_device_version=lambda: SimpleNamespace(name=version))
+    assert needs_upright_rotation(device) is expected
+
+
 def test_from_device_calibration_missing_camera():
-    device = SimpleNamespace(get_camera_calib=lambda label: None, get_transform_cpf_sensor=lambda label: None)
+    device = SimpleNamespace(
+        get_camera_calib=lambda label: None,
+        get_transform_cpf_sensor=lambda label: None,
+        get_device_version=lambda: SimpleNamespace(name="Gen2"),
+    )
     with pytest.raises(ValueError, match="camera-rgb"):
         GazeProjector.from_device_calibration(device)

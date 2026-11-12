@@ -31,11 +31,57 @@ This page records which signals we can actually use. It has two parts:
 
 ### Still to answer with a real recording
 
-- [ ] Which of the streams above are present in a Gen 2 recording, and at what rate?
-- [ ] Is any pupil-size signal present (maybe in a different stream)?
+- [x] Which of the streams above are present in a Gen 2 recording, and at what rate? → see s01_desk below:
+  - RGB: 10 Hz.
+  - Eye gaze and hand tracking: 30 Hz.
+  - PPG: 128 Hz.
+  - ALS: 10 Hz.
+  - IMU: 2 × 800 Hz.
+- [x] Is any pupil-size signal present? → **No** stream or field carries pupil size.
+- Other findings on s01_desk:
+  - **The RGB image is already upright**: 2560×1920, FISHEYE624. Unlike Gen 1, no 90° rotation is needed.
+  - **Blink flags are inverted**: `vergence.left/right_blink` are True while the eye is open.
+  - YOLO tags the wearer's own forearm as `person`. Those boxes are filtered out when they touch the bottom edge.
 - [ ] Which streams arrive **live** through the Client SDK streaming callbacks vs. only in recordings?
 - [ ] End-to-end latency of USB vs. Wi-Fi streaming.
 
 ## 2. Per-recording reports
 
-_None yet. Record sessions following [protocol.md](protocol.md), then run `aria-demo inspect`._
+
+## Recording `s01_desk.vrs`
+
+Device: DeviceVersion.Gen2
+
+| Label | Type | Stream ID | Samples | Nominal Hz | Measured Hz | Duration s |
+|---|---|---|---:|---:|---:|---:|
+| battery-status | ??? | `502-1` | 0 | 0.0 | 0.0 | 0.0 |
+| temperature | ??? | `246-1` | 384 | 1.0 | 25.5 | 15.0 |
+| als | ALS | `500-1` | 153 | 10.0 | 10.0 | 15.2 |
+| mic | AUDIO | `231-1` | 764 | 16000.0 | 50.0 | 15.3 |
+| baro0 | BAROMETER | `247-1` | 764 | 50.0 | 49.9 | 15.3 |
+| bluetooth | BLUETOOTH | `283-1` | 10 | 0.0 | 0.0 | 0.0 |
+| eyegaze | EYE_GAZE | `373-1` | 458 | 30.0 | 30.0 | 15.2 |
+| gps-app | GPS | `281-1` | 13 | 1.0 | 1.0 | 12.0 |
+| handtracking | HAND_POSE | `371-1` | 459 | 30.0 | 30.0 | 15.3 |
+| camera-et-left | IMAGE | `211-1` | 77 | 5.0 | 5.0 | 15.2 |
+| camera-et-right | IMAGE | `211-2` | 77 | 5.0 | 5.0 | 15.2 |
+| camera-rgb | IMAGE | `214-1` | 153 | 10.0 | 10.0 | 15.2 |
+| slam-front-left | IMAGE | `1201-1` | 459 | 30.0 | 30.0 | 15.3 |
+| slam-front-right | IMAGE | `1201-2` | 459 | 30.0 | 30.0 | 15.3 |
+| slam-side-left | IMAGE | `1201-3` | 459 | 30.0 | 30.0 | 15.3 |
+| slam-side-right | IMAGE | `1201-4` | 459 | 30.0 | 30.0 | 15.3 |
+| imu-left | IMU | `1202-1` | 12123 | 800.0 | 793.4 | 15.3 |
+| imu-right | IMU | `1202-2` | 12269 | 800.0 | 802.9 | 15.3 |
+| mag0 | MAGNETOMETER | `1203-1` | 1540 | 100.0 | 100.7 | 15.3 |
+| ppg | PPG | `248-1` | 1959 | 128.0 | 128.2 | 15.3 |
+| vio | VIO | `371-2` | 153 | 10.0 | 10.0 | 15.2 |
+| vio_high_frequency | VIO_HIGH_FREQ | `371-3` | 12131 | 800.0 | 793.5 | 15.3 |
+| wps | WPS | `282-1` | 6 | -1.0 | 0.0 | 0.0 |
+
+### Fields per probed stream
+
+- **als** (ALS): `blue_channel_normalized`, `capture_timestamp_ns`, `cct`, `clear_channel_normalized`, `clear_flux_watt_per_square_meter`, `exposure_time_us`, `gain_blue`, `gain_clear`, `gain_green`, `gain_ir`, `gain_red`, `gain_uv`, `gain_visible`, `green_channel_normalized`, `ir_channel_normalized`, `ir_flux_watt_per_square_meter`, `lux`, `red_channel_normalized`, `uv_channel_normalized`, `uv_flux_watt_per_square_meter`, `visible_channel_normalized`, `visible_flux_watt_per_square_meter`
+- **eyegaze** (EYE_GAZE): `combined_gaze_origin_in_cpf`, `combined_gaze_valid`, `depth`, `pitch`, `pitch_high`, `pitch_low`, `session_uid`, `spatial_gaze_point_in_cpf`, `spatial_gaze_point_valid`, `tracking_timestamp`, `vergence`, `yaw`, `yaw_high`, `yaw_low`, `vergence.left_blink`, `vergence.left_blink_valid`, `vergence.left_gaze_valid`, `vergence.left_pitch`, `vergence.left_yaw`, `vergence.left_yaw_high`, `vergence.left_yaw_low`, `vergence.right_blink`, `vergence.right_blink_valid`, `vergence.right_gaze_valid`, `vergence.right_pitch`, `vergence.right_yaw`, `vergence.right_yaw_high`, `vergence.right_yaw_low`, `vergence.tx_left_eye`, `vergence.tx_right_eye`, `vergence.ty_left_eye`, `vergence.ty_right_eye`, `vergence.tz_left_eye`, `vergence.tz_right_eye`
+- **handtracking** (HAND_POSE): `left_hand`, `right_hand`, `tracking_timestamp`
+- **ppg** (PPG): `capture_timestamp_ns`, `integration_time_us`, `led_current_ma`, `value`
+- **vio** (VIO): `angular_velocity_in_bodyimu`, `camera_serials`, `capture_timestamp_ns`, `frame_id`, `frontend_session_uid`, `gravity_in_odometry`, `linear_velocity_in_odometry`, `online_calib`, `pose_quality`, `status`, `transform_bodyimu_device`, `transform_odometry_bodyimu`, `unix_timestamp_ns`, `visual_tracking_quality`

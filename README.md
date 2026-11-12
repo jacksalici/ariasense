@@ -36,6 +36,14 @@ uv run aria-demo overlay data/s01_desk.vrs -o runs/s01_overlay.mp4
 
 Add `--show` for a live window and `--speed 1` to play back in real time.
 
+Run YOLO26 detection and highlight the object you're looking at, with its dwell time. This is M2:
+
+```bash
+uv run aria-demo detect data/s01_desk.vrs -o runs/s01_detect.mp4
+```
+
+Weights are downloaded to `models/` on first use. Pick another model with `--model yolo26m.pt`. At the end, the command prints the time spent looking at each class.
+
 ## Development
 
 ```bash

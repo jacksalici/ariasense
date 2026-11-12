@@ -48,3 +48,16 @@ class ImuSample:
 
 
 Sample = RgbFrame | EyeGazeSample | PpgSample | AlsSample | ImuSample
+
+
+@dataclass(frozen=True, slots=True)
+class Detection:
+    class_name: str
+    confidence: float
+    box: tuple[float, float, float, float]  # x1, y1, x2, y2 in upright-image pixels
+    track_id: int | None = None
+
+    @property
+    def area(self) -> float:
+        x1, y1, x2, y2 = self.box
+        return max(0.0, x2 - x1) * max(0.0, y2 - y1)

@@ -2,7 +2,7 @@
 
 Pipeline: gaze angles -> 3D point in CPF -> RGB camera frame -> camera model
 (fisheye) -> raw pixel -> optional rescale to the delivered image -> optional
-90° clockwise rotation so the image is upright.
+90° clockwise rotation (Gen 1 only) so the image is upright.
 """
 
 from __future__ import annotations
@@ -32,8 +32,14 @@ def rotate_pixel_cw90(u: float, v: float, raw_height: int) -> Pixel:
 
 
 def upright(image: np.ndarray) -> np.ndarray:
-    """Rotate a raw Aria RGB image 90° clockwise so it is upright."""
+    """Rotate a raw Gen 1 Aria RGB image 90° clockwise so it is upright."""
     return np.ascontiguousarray(np.rot90(image, k=-1))
+
+
+def needs_upright_rotation(device_calibration: Any) -> bool:
+    """Gen 1 RGB frames are stored sideways; Gen 2 frames are already upright (verified on s01_desk)."""
+    version = getattr(device_calibration.get_device_version(), "name", "")
+    return version == "Gen1"
 
 
 class GazeProjector:
@@ -56,9 +62,12 @@ class GazeProjector:
         cls,
         device_calibration: Any,
         camera_label: str = RGB_LABEL,
-        rotate_upright: bool = True,
+        rotate_upright: bool | None = None,
         default_depth_m: float = DEFAULT_DEPTH_M,
     ) -> GazeProjector:
+        """`rotate_upright=None` decides from the device: only Gen 1 RGB images are sideways."""
+        if rotate_upright is None:
+            rotate_upright = needs_upright_rotation(device_calibration)
         camera = device_calibration.get_camera_calib(camera_label)
         T_cpf_camera = device_calibration.get_transform_cpf_sensor(camera_label)
         if camera is None or T_cpf_camera is None:
