@@ -34,11 +34,11 @@ uv run aria_gen2 recording download --help
 
 Downloaded files are named `<uuid>.vrs`. Rename them to `sNN_<short-name>.vrs`. Run `--help` on any subcommand to see its options.
 
-## M0: stream check
+## s01_desk: stream check
 
 **s01_desk (2 min).** Seated at a desk with 6–8 everyday objects (cup, phone, book, scissors, keyboard, bottle…). Look at each one for about 5 s, in a known order. This is used for gaze → RGB verification and YOLO.
 
-## M4: state validation
+## s02_states: state validation
 
 **s02_states (about 8 min).** One continuous recording with the segments below. Note the start time of each segment, or say its name out loud so it can be found in the audio.
 

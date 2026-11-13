@@ -28,7 +28,7 @@ Append the report to the stream findings:
 uv run aria-demo inspect data/s01_desk.vrs -o docs/streams.md
 ```
 
-Render the gaze dot and trail on the upright RGB video. This is the M1 check that the dot lands on what you looked at:
+Render the gaze dot and trail on the upright RGB video. Use it to check that the dot lands on what you looked at:
 
 ```bash
 uv run aria-demo overlay data/s01_desk.vrs -o runs/s01_overlay.mp4
@@ -36,7 +36,7 @@ uv run aria-demo overlay data/s01_desk.vrs -o runs/s01_overlay.mp4
 
 Add `--show` for a live window and `--speed 1` to play back in real time.
 
-Run YOLO26 detection and highlight the object you're looking at, with its dwell time. This is M2:
+Run YOLO26 detection and highlight the object you're looking at, with its dwell time:
 
 ```bash
 uv run aria-demo detect data/s01_desk.vrs -o runs/s01_detect.mp4
@@ -44,7 +44,7 @@ uv run aria-demo detect data/s01_desk.vrs -o runs/s01_detect.mp4
 
 Weights are downloaded to `models/` on first use. Pick another model with `--model yolo26m.pt`. At the end, the command prints the time spent looking at each class.
 
-Compute physiological and eye features once per second, z-scored against a personal baseline. This is M3:
+Compute physiological and eye features once per second, z-scored against a personal baseline:
 
 ```bash
 uv run aria-demo physio data/s01_desk.vrs -o runs/s01_features.csv --baseline 60
@@ -58,7 +58,7 @@ The output is a CSV of raw values and z-scores, plus a PNG with each feature plo
 - head rotation and jerk;
 - ambient light.
 
-Estimate a state each second: Calm, Focused, Distracted, Stressed, Fatigued, or a Startled event. Each estimate comes with its confidence and the reasons behind it. This is M4:
+Estimate a state each second: Calm, Focused, Distracted, Stressed, Fatigued, or a Startled event. Each estimate comes with its confidence and the reasons behind it:
 
 ```bash
 uv run aria-demo states data/s02_states.vrs --labels data/s02_states_labels.csv
@@ -66,7 +66,7 @@ uv run aria-demo states data/s02_states.vrs --labels data/s02_states_labels.csv
 
 The rules and thresholds live in [configs/state.yaml](configs/state.yaml). With `--labels`, the command also prints a confusion matrix; see [docs/protocol.md](docs/protocol.md). These are *estimated* physiological and attentional states, not measured emotions.
 
-### Dashboard (M5)
+### Dashboard
 
 Replay a recording through the full pipeline and open the dashboard at http://127.0.0.1:8000:
 
@@ -84,7 +84,7 @@ The dashboard shows:
 
 Controls: pause/resume (space bar), playback speed, Re-baseline, and a boxes toggle. By default the replay loops. Use `--no-loop` to play it once.
 
-### Live from the glasses (M6)
+### Live from the glasses
 
 Run the dashboard on the live stream from the glasses:
 
