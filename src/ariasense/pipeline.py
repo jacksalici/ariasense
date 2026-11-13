@@ -248,6 +248,8 @@ class DemoPipeline:
                     source.device_calibration(), default_depth_m=self.depth_m
                 )
                 emit({"type": "status", "loop": loops, "ended": False, "paused": False})
+                if hasattr(source, "duration_s"):  # lets the timeline span the whole file up front
+                    emit({"type": "status", "duration": round(source.duration_s(), 2)})
                 self._run_once(source, projector, emit)
             finally:
                 if hasattr(source, "close"):

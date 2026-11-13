@@ -28,6 +28,9 @@ class FakeSource:
     def device_calibration(self):
         return FakeCalibration()
 
+    def duration_s(self):
+        return self.seconds
+
     def samples(self):
         out = []
         t = np.arange(0, self.seconds, 1 / 128)
@@ -63,6 +66,7 @@ def test_pipeline_emits_frames_features_state_and_baseline():
     assert kinds.count("baseline") == 1
     assert kinds.count("features") == kinds.count("state") >= 4
     assert msgs[-1] == {"type": "status", "ended": True}
+    assert {"type": "status", "duration": 6.0} in msgs  # the timeline can span the file up front
 
     frame = next(m for m in msgs if m["type"] == "frame" and m["attended"])
     assert frame["gaze"] == [0.5, 0.5]  # straight gaze -> image centre
@@ -246,9 +250,9 @@ def test_empty_dashboard_opens_a_recording_from_the_ui(tmp_path):
     (tmp_path / "notes.txt").write_text("not a recording")
     opened = []
 
-    def opener(path):
-        opened.append(path)
-        return make_pipeline(), {"source": path.name, "mode": "replay"}
+    def opener(path, live):
+        opened.append((path, live))
+        return make_pipeline(), {"source": path.name, "mode": "replay", "live": live}
 
     app = create_app(None, opener=opener, data_dir=tmp_path)
     with TestClient(app) as client:
@@ -261,13 +265,15 @@ def test_empty_dashboard_opens_a_recording_from_the_ui(tmp_path):
         assert client.post("/api/open", json={"path": str(tmp_path / "notes.txt")}).json()["ok"] is False
 
         r = client.post("/api/open", json={"path": files[0]["path"]}).json()
-        assert r == {"ok": True, "source": "a.vrs"} and opened == [tmp_path / "sub" / "a.vrs"]
+        assert r == {"ok": True, "source": "a.vrs"} and opened == [(tmp_path / "sub" / "a.vrs", True)]
         assert client.get("/api/info").json()["source"] == "a.vrs"
         hub = app.state.hub
         assert hub.session == 1 and hub.latest["status"]["session"] == 1
 
-        client.post("/api/open", json={"path": files[0]["path"]})  # replaces the running pipeline
-        assert hub.session == 2 and len(opened) == 2
+        # Replaces the running pipeline; live=False analyses the whole file instead.
+        client.post("/api/open", json={"path": files[0]["path"], "live": False})
+        assert hub.session == 2 and opened[-1][1] is False
+        assert client.get("/api/info").json()["live"] is False
     assert find_recordings(tmp_path / "missing") == []
 
 

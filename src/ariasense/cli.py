@@ -243,11 +243,19 @@ def dashboard(
     config: Annotated[Path, typer.Option(help="State config YAML.")] = Path("configs/state.yaml"),
     depth: DepthOpt = 1.0,
     data_dir: DataDirOpt = Path("data"),
+    live_replay: Annotated[
+        bool,
+        typer.Option(
+            "--live/--no-live",
+            help="Play the file in real time, or analyse it all as fast as possible and review it.",
+        ),
+    ] = True,
 ) -> None:
     """M5: web dashboard replaying a recording (video + gaze + YOLO, signals, estimated state)."""
     _serve(
         vrs,
         None,
+        live_replay=live_replay,
         speed=speed,
         loop=loop,
         port=port,
@@ -277,6 +285,7 @@ def _serve(
     config,
     depth,
     data_dir,
+    live_replay=True,
 ) -> None:
     """Serve the dashboard on a VRS replay, a live (factory, info) pair, or nothing yet."""
     import uvicorn
@@ -295,13 +304,17 @@ def _serve(
         )
         return pipeline, {**info, "model": model}
 
-    def open_vrs(path: Path):
-        return build(vrs_source_factory(path, speed), {"source": path.name, "mode": "replay"}, loop)
+    def open_vrs(path: Path, live: bool = True):
+        if live:
+            factory, looping = vrs_source_factory(path, speed), loop
+        else:  # analyse: no pacing, no loop; the browser reviews it as it fills in
+            factory, looping = vrs_source_factory(path, 0), False
+        return build(factory, {"source": path.name, "mode": "replay", "live": live}, looping)
 
     if live is not None:
         pipeline, info = build(*live, False)
     elif vrs is not None:
-        pipeline, info = open_vrs(vrs)
+        pipeline, info = open_vrs(vrs, live_replay)
     else:
         pipeline, info = None, {"model": model}
     web = create_app(pipeline, info=info, opener=open_vrs, data_dir=data_dir)

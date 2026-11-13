@@ -14,7 +14,6 @@
       <h1>AriaSense</h1>
     </div>
     <div class="controls">
-      <span class="pill" id="clock">t = 0.0 s</span>
       <span class="pill" id="latency" hidden title="Capture to fully processed, via TicSync">— ms</span>
       <label class="select" id="speedBox">Speed
         <select id="speed">
@@ -28,7 +27,7 @@
       <button id="openFile" title="Open a VRS recording">Open file</button>
       <button id="resetLayout" title="Restore the default panel layout">Reset layout</button>
       <button id="rebaseline" title="Start a new personal baseline">Re-baseline</button>
-      <button id="pause" class="primary" title="Pause / resume (space)">Pause</button>
+      <button id="pause" class="primary" title="Pause / resume; while reviewing, play / pause the recording (space)">Pause</button>
     </div>
   </header>
 
@@ -130,6 +129,9 @@
       <ul class="files" id="fileList"></ul>
       <label class="path">Or a path on this machine
         <input type="text" id="openPath" placeholder="/path/to/recording.vrs" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="toggle live-opt"><input type="checkbox" id="openLive" checked>
+        <span><b>Go live</b> — play in real time. Off: analyse the whole file as fast as possible and show all of it on the timeline.</span>
       </label>
       <p class="error" id="openError" hidden></p>
       <div class="actions">

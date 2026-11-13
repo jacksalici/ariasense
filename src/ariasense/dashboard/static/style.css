@@ -141,3 +141,7 @@ select { padding: 3px 6px; }
 .path input { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--text); }
 .dialog .error { color: #b91c1c; }
 .dialog .actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }
+.dialog .live-opt { align-items: flex-start; margin-top: 12px; color: var(--text); }
+.dialog .live-opt input { margin-top: 2px; }
+.dialog .live-opt span { color: var(--muted); }
+.dialog .live-opt b { color: var(--text); font-weight: 600; }

@@ -43,6 +43,9 @@ const S = {
   paused: false,
   showBoxes: true,
   session: 0, // bumped by the server when another recording is opened
+  follow: true, // false: the file is analysed as fast as possible and reviewed, never followed live
+  duration: 0, // length of the file being replayed (s), when the source knows it
+  ended: false,
   lastT: 0,
 };
 
@@ -96,6 +99,7 @@ function onFrame(m) {
   S.liveFrame = m;
   S.lastT = m.t;
   if (!S.view.live) {
+    if (!S.frame) fetchFrame(S.view.t); // analysis just started: show its first frame
     drawTimelineThrottled(); // the session grew; the picture stays on the chosen moment
     return;
   }
@@ -105,7 +109,6 @@ function onFrame(m) {
 
 function showFrame(m) {
   S.frame = m;
-  $("clock").textContent = `t = ${m.t.toFixed(1)} s`;
   if (m.jpeg) S.image.src = `data:image/jpeg;base64,${m.jpeg}`;
   else drawVideo();
 
@@ -229,6 +232,11 @@ function indexAt(arr, t) {
 function windowOf(arr, seconds) {
   const end = viewEnd(arr);
   return arr.slice(indexAt(arr, end - seconds) + 1, indexAt(arr, end) + 1);
+}
+
+// The timeline's span: the whole file when it is being analysed, else what has been seen so far.
+function timelineEnd() {
+  return S.follow || S.ended ? sessionEnd() : Math.max(sessionEnd(), S.duration || 0);
 }
 
 function sessionEnd() {
@@ -462,7 +470,8 @@ function drawTimeline() {
   TL.drawnAt = performance.now();
   const { ctx, w, h } = fit($("timeline"));
   ctx.clearRect(0, 0, w, h);
-  const end = sessionEnd();
+  const done = sessionEnd(); // processed so far
+  const end = timelineEnd();
   const pps = w / end; // pixels per second
   const axisH = 15;
   const barH = 10;
@@ -476,7 +485,7 @@ function drawTimeline() {
     const step = THUMB_STEPS.find((v) => v * pps >= tw) || THUMB_STEPS[THUMB_STEPS.length - 1];
     ctx.fillStyle = S.lastT > 0 ? "#000" : css("--panel-2");
     ctx.fillRect(0, 0, w, stripH);
-    for (let t = 0; t < end; t += step) {
+    for (let t = 0; t < done; t += step) {
       const x = t * pps;
       const cw = Math.min(step * pps, w - x);
       const img = thumbFor(t);
@@ -503,6 +512,20 @@ function drawTimeline() {
     ctx.fillStyle = STATE_COLORS[st.state] || "#666";
     ctx.fillRect(x, barY, Math.max(1, x2 - x), barH); // integer edges: no seams
   });
+
+  // Not analysed yet.
+  if (S.lastT > 0 && done < end - 0.05) {
+    const x = Math.round(done * pps);
+    ctx.fillStyle = css("--panel-2");
+    ctx.fillRect(x, 0, w - x, barY + barH);
+    if (w - x > 120 && stripH >= 18) {
+      ctx.fillStyle = MUTED;
+      ctx.font = "11px Inter, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`Analysing… ${Math.floor((100 * done) / end)}%`, (x + w) / 2, stripH / 2);
+    }
+  }
 
   // Axis.
   const tick = TICKS.find((v) => v * pps >= 70) || TICKS[TICKS.length - 1];
@@ -584,11 +607,12 @@ async function fetchFrame(t) {
 
 function updateModeUi() {
   const live = S.view.live;
+  $("tlLive").hidden = !S.follow;
   $("tlLive").classList.toggle("primary", live);
   $("tlLive").textContent = live ? "● Live" : "Go live";
   $("tlPlay").disabled = live;
   $("tlPlay").textContent = S.view.playing ? "Pause" : "Play";
-  $("clock").classList.toggle("warn", !live);
+  updatePauseButton();
 }
 
 function seek(t) {
@@ -600,7 +624,26 @@ function seek(t) {
   renderView();
 }
 
+// Analysis mode: playback caught up with what has been processed (or the file ended).
+function stopAtEnd() {
+  S.view.t = sessionEnd();
+  S.view.playing = false;
+  updateModeUi();
+  renderView();
+}
+
+// Analysis mode: never follow live; start reviewing from the beginning.
+function enterReview() {
+  S.view.live = false;
+  S.view.playing = false;
+  S.view.t = 0;
+  updateModeUi();
+  if (S.lastT > 0) fetchFrame(0);
+  renderView();
+}
+
 function goLive() {
+  if (!S.follow) return;
   S.view.live = true;
   S.view.playing = false;
   framePending = null;
@@ -624,7 +667,8 @@ function playbackTick(now) {
   if (S.view.playing && !S.view.live) {
     S.view.t += Math.min(dt, 0.25);
     if (S.view.t >= sessionEnd() - 0.1) {
-      goLive();
+      if (S.follow) goLive();
+      else stopAtEnd();
     } else {
       fetchFrame(S.view.t);
       const key = `${indexAt(S.states, S.view.t)}:${indexAt(S.features, S.view.t)}`;
@@ -643,14 +687,14 @@ function setupTimeline() {
   const canvas = $("timeline");
   const timeAt = (e) => {
     const r = canvas.getBoundingClientRect();
-    return { x: e.clientX - r.left, t: ((e.clientX - r.left) / r.width) * sessionEnd(), w: r.width };
+    return { x: e.clientX - r.left, t: ((e.clientX - r.left) / r.width) * timelineEnd(), w: r.width };
   };
   let dragging = false;
   canvas.addEventListener("pointerdown", (e) => {
     dragging = true;
     canvas.setPointerCapture(e.pointerId);
     const { x, t, w } = timeAt(e);
-    if (x >= w - 3) goLive();
+    if (x >= w - 3 && S.follow) goLive();
     else seek(t);
   });
   canvas.addEventListener("pointermove", (e) => {
@@ -682,12 +726,12 @@ function setupTimeline() {
 function onStatus(m) {
   if ("session" in m && m.session !== S.session) {
     S.session = m.session; // another recording was opened: start from scratch
-    resetSession();
+    resetSession(m.live !== false);
     loadInfo();
   }
   if ("paused" in m) {
     S.paused = m.paused;
-    $("pause").textContent = m.paused ? "Resume" : "Pause";
+    updatePauseButton();
   }
   if ("speed" in m) $("speed").value = String(m.speed);
   if ("missing_streams" in m) {
@@ -704,8 +748,13 @@ function onStatus(m) {
     $("banner").hidden = !notes.length;
     $("banner").textContent = notes.join("  ");
   }
+  if ("duration" in m) S.duration = m.duration;
+  if ("ended" in m) S.ended = m.ended;
   if (m.error) toast(`Pipeline error: ${m.error}`);
-  else if (m.ended) toast("Replay finished.", 4000);
+  else if (m.ended && !S.follow) {
+    toast("Analysis finished: the whole recording is on the timeline.", 5000);
+    drawTimeline();
+  } else if (m.ended) toast("Replay finished.", 4000);
   if ("loop" in m && m.loop !== S.epoch) {
     S.epoch = m.loop;
     S.lastT = 0; // a new run: old thumbnails belong to another recording
@@ -728,18 +777,27 @@ function resetKpis() {
   renderBars({});
 }
 
-function resetSession() {
+function resetSession(follow = true) {
   resetHistory();
   Object.assign(S, { lastT: 0, frame: null, liveFrame: null, baseline: null, imageReady: false, epoch: null });
+  Object.assign(S, { duration: 0, ended: false });
   THUMBS.clear();
   $("toast").hidden = true;
   $("lookingObj").textContent = "—";
   $("lookingDwell").textContent = "—";
-  $("clock").textContent = "t = 0.0 s";
   const { ctx, w, h } = fit($("video"), 16 / 9);
   ctx.clearRect(0, 0, w, h);
   $("stageEmpty").textContent = "Waiting for the first frame…";
-  goLive();
+  setFollow(follow, true);
+}
+
+// Live replay follows the stream; analysis mode reviews it from the start while it fills in.
+function setFollow(follow, force = false) {
+  if (follow === S.follow && !force) return;
+  S.follow = follow;
+  $("speedBox").hidden = $("speedBox").hidden || !follow;
+  if (follow) goLive();
+  else enterReview();
 }
 
 function resetHistory() {
@@ -776,7 +834,16 @@ async function control(action, value) {
   }
 }
 
-$("pause").onclick = () => control(S.paused ? "resume" : "pause");
+// Live: pauses the pipeline. Reviewing: plays/pauses the recording, like the timeline's button.
+function updatePauseButton() {
+  if (S.view.live) $("pause").textContent = S.paused ? "Resume" : "Pause";
+  else $("pause").textContent = S.view.playing ? "Pause" : "Play";
+}
+
+$("pause").onclick = () => {
+  if (S.view.live) control(S.paused ? "resume" : "pause");
+  else togglePlay();
+};
 $("rebaseline").onclick = () => control("rebaseline");
 $("speed").onchange = (e) => control("speed", parseFloat(e.target.value));
 $("showBoxes").onchange = (e) => {
@@ -787,13 +854,12 @@ document.addEventListener("keydown", (e) => {
   if (e.target !== document.body) return;
   if (e.code === "Space") {
     e.preventDefault();
-    if (S.view.live) $("pause").click();
-    else togglePlay();
+    $("pause").click();
   } else if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
     e.preventDefault();
     const step = (e.shiftKey ? 10 : 1) * (e.code === "ArrowLeft" ? -1 : 1);
     const from = S.view.live ? sessionEnd() : S.view.t;
-    if (step > 0 && !S.view.live && from + step >= sessionEnd()) goLive();
+    if (step > 0 && !S.view.live && from + step >= sessionEnd() && S.follow) goLive();
     else seek(from + step);
   } else if (e.code === "Escape" && !S.view.live) {
     goLive();
@@ -827,8 +893,9 @@ async function loadInfo() {
   try {
     const info = await (await fetch("/api/info")).json();
     S.paused = info.paused;
-    $("pause").textContent = info.paused ? "Resume" : "Pause";
-    $("speedBox").hidden = info.mode !== "replay"; // speed only applies to file replay
+    updatePauseButton();
+    $("speedBox").hidden = info.mode !== "replay" || info.live === false; // only for real-time file replay
+    if (info.source) setFollow(info.live !== false);
     $("openFile").hidden = !info.can_open;
     $("openFile").title = info.source ? `Open a VRS recording (now: ${info.source})` : "Open a VRS recording";
     document.title = info.source ? `AriaSense · ${info.source}` : "AriaSense";
@@ -876,7 +943,7 @@ async function openChosen() {
       await fetch("/api/open", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path }),
+        body: JSON.stringify({ path, live: $("openLive").checked }),
       })
     ).json();
     if (!r.ok) throw new Error(r.error);

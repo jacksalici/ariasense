@@ -82,10 +82,12 @@ class Control(BaseModel):
 
 class OpenFile(BaseModel):
     path: str
+    live: bool = True  # False: analyse the whole file as fast as possible, then review it
 
 
-# Builds a pipeline for a recording picked in the UI: (pipeline, info shown by /api/info).
-Opener = Callable[[Path], tuple[DemoPipeline, dict[str, Any]]]
+# Builds a pipeline for a recording picked in the UI, played live or analysed in one go:
+# (pipeline, info shown by /api/info).
+Opener = Callable[[Path, bool], tuple[DemoPipeline, dict[str, Any]]]
 
 
 class Runner:
@@ -180,11 +182,11 @@ def create_app(
         if not path.is_file() or path.suffix.lower() != ".vrs":
             return {"ok": False, "error": f"not a VRS file: {path}"}
         try:
-            new_pipeline, new_info = opener(path)
+            new_pipeline, new_info = opener(path, f.live)
         except Exception as exc:
             return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
         await asyncio.to_thread(runner.stop)
-        hub.reset({"source": new_info.get("source", path.name)})
+        hub.reset({"source": new_info.get("source", path.name), "live": new_info.get("live", True)})
         runner.start(new_pipeline, new_info)
         return {"ok": True, "source": new_info.get("source", path.name)}
 

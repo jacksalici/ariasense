@@ -91,6 +91,14 @@ class VrsReplaySource:
     def streams(self) -> dict[str, tuple[Signal, str]]:
         return dict(self._streams)
 
+    def duration_s(self) -> float:
+        """Length of the recording, from the first to the last sample of the replayed streams."""
+        from projectaria_tools.core.sensor_data import TimeDomain
+
+        first = min(self._provider.get_first_time_ns(s, TimeDomain.DEVICE_TIME) for s in self._stream_ids)
+        last = max(self._provider.get_last_time_ns(s, TimeDomain.DEVICE_TIME) for s in self._stream_ids)
+        return max(0.0, (last - first) / 1e9)
+
     def device_calibration(self) -> Any:
         calib = self._provider.get_device_calibration()
         if calib is None:

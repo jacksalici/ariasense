@@ -82,6 +82,12 @@ uv run ariasense dashboard
 
 Open file lists the `.vrs` files under `data/` (change the folder with `--data-dir`), or takes any path on this machine. Opening a file replaces whatever is playing, including the live stream.
 
+**Go live** (on by default) plays the file in real time. Turn it off in the Open file dialog, or pass `--no-live`, to analyse the whole file as fast as possible instead: the timeline spans the full recording from the start, fills in as it is processed, and you review it with click/drag, Play and the arrow keys.
+
+```bash
+uv run ariasense dashboard data/s01_desk.vrs --no-live
+```
+
 The dashboard shows:
 - the camera view, with the gaze dot and trail, YOLO boxes, and the object you're looking at with its hold time;
 - the estimated state, with its confidence and reasons, and the number of gaze switches between objects;
@@ -97,7 +103,7 @@ Tech stack:
 
 Click or drag on the timeline to stop following the live view and look back at any moment: the camera, state, signals and attention panels all show that time. Play runs the recording from there. Left/right arrows step 1 s (10 s with Shift), and Esc or the Live button returns to the live edge. Every frame is kept in a temporary file on disk while the dashboard runs, and a new loop of the replay starts a new recording.
 
-Controls: pause/resume (space bar; in review it plays/pauses the recording), playback speed, Re-baseline, and a boxes toggle. By default the replay loops. Use `--no-loop` to play it once.
+Controls: Pause (space bar; while you look back it plays/pauses the recording, in sync with the timeline's Play), playback speed, Re-baseline, and a boxes toggle. By default the replay loops. Use `--no-loop` to play it once.
 
 ### Live from the glasses
 
