@@ -80,9 +80,11 @@ The dashboard shows:
 - an arousal × attention plane;
 - live signal charts against the baseline band;
 - attention time per object;
-- a state timeline.
+- a timeline along the bottom with video thumbnails and the state over the whole session.
 
-Controls: pause/resume (space bar), playback speed, Re-baseline, and a boxes toggle. By default the replay loops. Use `--no-loop` to play it once.
+Click or drag on the timeline to stop following the live view and look back at any moment: the camera, state, signals and attention panels all show that time. Play runs the recording from there. Left/right arrows step 1 s (10 s with Shift), and Esc or the Live button returns to the live edge. Every frame is kept in a temporary file on disk while the dashboard runs, and a new loop of the replay starts a new recording.
+
+Controls: pause/resume (space bar; in review it plays/pauses the recording), playback speed, Re-baseline, and a boxes toggle. By default the replay loops. Use `--no-loop` to play it once.
 
 ### Live from the glasses
 

@@ -116,7 +116,7 @@ def test_hub_drops_frames_for_slow_clients_and_keeps_history():
     q: asyncio.Queue = asyncio.Queue()
     hub.clients.add(q)
     for i in range(10):
-        hub._fanout({"type": "frame", "i": i})
+        hub._fanout({"type": "frame", "i": i, "t": i / 10, "jpeg": None})
     assert q.qsize() == 3  # MAX_QUEUED_FRAMES + 1
     hub._fanout({"type": "state", "t": 1})
     hub._fanout({"type": "status", "paused": True})
@@ -124,9 +124,11 @@ def test_hub_drops_frames_for_slow_clients_and_keeps_history():
     snap = hub.snapshot()
     assert snap[0] == {"type": "status", "paused": True, "speed": 2}
     assert {"type": "state", "t": 1} in snap and snap[-1]["type"] == "frame"
+    assert len(hub.recording) == 10  # every frame is recorded, even those a slow client skipped
 
     hub._fanout({"type": "status", "loop": 1})  # replay restarted: old history is dropped
     assert not any(m["type"] == "state" for m in hub.snapshot())
+    assert len(hub.recording) == 0
 
 
 def test_server_serves_ui_streams_messages_and_controls():
@@ -153,6 +155,50 @@ def test_server_serves_ui_streams_messages_and_controls():
         client.post("/api/control", json={"action": "resume"})
         time.sleep(0.1)
     assert p.controls.stop.is_set()  # lifespan shutdown stops the pipeline
+
+
+def _frame(t: float, value: int = 128) -> dict:
+    return {"type": "frame", "t": t, "jpeg": encode_jpeg(np.full((H, W, 3), value, np.uint8)), "gaze": None}
+
+
+def test_recording_returns_the_frame_at_or_before_a_time_and_thumbnails():
+    import base64
+
+    from ariasense.dashboard.recording import Recording
+
+    rec = Recording()
+    assert rec.frame(1.0) is None and rec.thumbnail(1.0) is None
+    for t in (0.0, 0.1, 0.2, 5.0):
+        rec.add(_frame(t))
+    assert len(rec) == 4 and rec.duration == 5.0
+    assert rec.frame(0.15)["t"] == 0.1
+    assert rec.frame(99)["t"] == 5.0 and rec.frame(-3)["t"] == 0.0  # clamped to what exists
+    full = rec.frame(0.2)
+    assert full["gaze"] is None and base64.b64decode(full["jpeg"])[:2] == b"\xff\xd8"
+    thumb = rec.thumbnail(0.2, width=32)
+    assert thumb is not None and thumb[:2] == b"\xff\xd8"
+
+    rec.add(_frame(0.0))  # time went backwards: a new run replaces the old recording
+    assert len(rec) == 1
+    rec.clear()
+    assert rec.frame(0) is None and rec.duration == 0
+    rec.add({"type": "frame", "t": 1.0, "jpeg": None})  # no JPEG (e.g. headless): metadata only
+    assert rec.frame(1.0)["jpeg"] is None and rec.thumbnail(1.0) is None
+    rec.close()
+
+
+def test_server_serves_recorded_frames_for_the_timeline():
+    p = make_pipeline()
+    p.encode = lambda img: encode_jpeg(img)
+    with TestClient(create_app(p)) as client:
+        for _ in range(100):
+            if client.get("/api/frame", params={"t": 5}).status_code == 200:
+                break
+            time.sleep(0.05)
+        r = client.get("/api/frame", params={"t": 0.0})
+        assert r.status_code == 200 and r.json()["type"] == "frame" and r.json()["jpeg"]
+        thumb = client.get("/api/thumb", params={"t": 1.0, "w": 32})
+        assert thumb.status_code == 200 and thumb.headers["content-type"] == "image/jpeg"
 
 
 @pytest.mark.parametrize("width", [64, 2000])

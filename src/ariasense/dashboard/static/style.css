@@ -113,3 +113,9 @@ select { padding: 3px 6px; }
 }
 
 .spark > .uplot, .fill > .uplot { position: absolute; left: 0; top: 0; }
+
+/* timeline controls */
+.panel-head .tl-hint { margin-right: auto; font-size: 11px; }
+.panel-head button { align-self: center; padding: 1px 8px; font-size: 11px; cursor: pointer; }
+.panel-head button:disabled { opacity: 0.45; cursor: default; }
+.fill > canvas#timeline { cursor: col-resize; touch-action: none; }

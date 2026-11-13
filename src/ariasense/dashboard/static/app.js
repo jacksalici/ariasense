@@ -25,18 +25,21 @@ const SIGNALS = [
 // Thresholds mirrored from configs/state.yaml, for the guide lines on the plane.
 const PLANE = { range: 3, focused: 0.8, distracted: -0.8, stressed: 1.2, calm: 0.5 };
 const SERIES_SECONDS = 120;
-const TIMELINE_SECONDS = 300;
 const PLANE_TRAIL_SECONDS = 30;
+const THUMB_W = 160; // thumbnail width requested from the server, px
+const THUMB_STEPS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600];
 
 // ---- state -----------------------------------------------------------------
 const S = {
   frame: null,
   image: new Image(),
   imageReady: false,
-  series: Object.fromEntries(SIGNALS.map((s) => [s.key, []])),
   baseline: null,
-  states: [], // {t, state}
-  plane: [], // {t, arousal, attention}
+  states: [], // full `state` messages of the whole session
+  features: [], // full `features` messages of the whole session
+  liveFrame: null, // latest frame received, shown while following live
+  view: { live: true, t: 0, playing: false }, // what the panels show: the live edge or a chosen time
+  epoch: null, // replay run; thumbnails are only valid within one
   paused: false,
   showBoxes: true,
   sourceLabel: "",
@@ -88,14 +91,25 @@ S.image.onload = () => {
   drawVideo();
 };
 
+// A frame arrived from the stream. It is always recorded server-side; shown only when following live.
 function onFrame(m) {
-  S.frame = m;
+  S.liveFrame = m;
   S.lastT = m.t;
+  if (!S.view.live) {
+    drawTimelineThrottled(); // the session grew; the picture stays on the chosen moment
+    return;
+  }
+  showFrame(m);
+  drawTimelineThrottled();
+}
+
+function showFrame(m) {
+  S.frame = m;
   $("clock").textContent = `t = ${m.t.toFixed(1)} s`;
   if (m.jpeg) S.image.src = `data:image/jpeg;base64,${m.jpeg}`;
   else drawVideo();
 
-  if (m.latency_ms !== undefined) {
+  if (m.latency_ms !== undefined && S.view.live) {
     const el = $("latency");
     el.hidden = false;
     el.textContent = m.latency_ms === null ? "latency —" : `latency ${m.latency_ms} ms`;
@@ -162,6 +176,13 @@ function drawVideo() {
 // ---- state card ----------------------------------------------------------------
 function onState(m) {
   checkTime(m.t);
+  S.states.push(m);
+  if (S.view.live) renderState(m);
+  if (S.view.live) drawPlane();
+  drawTimeline();
+}
+
+function renderState(m) {
   const color = STATE_COLORS[m.state] || STATE_COLORS.Neutral;
   const card = $("stateCard");
   card.style.setProperty("--state", color);
@@ -178,23 +199,50 @@ function onState(m) {
   $("calib").hidden = !calibrating;
   $("calibFill").style.width = `${Math.round(m.baseline_progress * 100)}%`;
 
-  S.states.push({ t: m.t, state: m.state });
-  trim(S.states, m.t, TIMELINE_SECONDS);
-  if (m.arousal !== null && m.attention !== null) {
-    S.plane.push({ t: m.t, arousal: m.arousal, attention: m.attention });
-    trim(S.plane, m.t, PLANE_TRAIL_SECONDS);
-  }
   renderBars(m.attention_totals || {}, m.attention_switches || 0);
-  drawPlane();
-  drawTimeline();
 }
 
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
-function trim(arr, now, seconds) {
-  while (arr.length && now - arr[0].t > seconds) arr.shift();
+// ---- view time: what the panels show --------------------------------------------
+// Live: the newest message. Review: the moment picked on the timeline.
+function viewEnd(arr) {
+  return S.view.live ? (arr.length ? arr[arr.length - 1].t : 0) : S.view.t;
+}
+
+// Index of the last message at or before t (-1 if none).
+function indexAt(arr, t) {
+  let lo = 0;
+  let hi = arr.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (arr[mid].t <= t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo - 1;
+}
+
+// Messages in the `seconds` before the view time.
+function windowOf(arr, seconds) {
+  const end = viewEnd(arr);
+  return arr.slice(indexAt(arr, end - seconds) + 1, indexAt(arr, end) + 1);
+}
+
+function sessionEnd() {
+  return Math.max(S.lastT, S.states.length ? S.states[S.states.length - 1].t : 0, 1);
+}
+
+// Redraw every panel for the current view time.
+function renderView() {
+  const st = S.states[indexAt(S.states, viewEnd(S.states))];
+  if (st) renderState(st);
+  else renderBars({}, 0);
+  renderSignalValues();
+  drawPlane();
+  drawSignals();
+  drawTimeline();
 }
 
 function renderBars(totals, switches) {
@@ -259,14 +307,15 @@ function drawPlane() {
   tag("Stressed", X(PLANE.distracted) + 6, Y(R) + 12);
   tag("Calm", X(PLANE.distracted) + 6, Y(-R) - 6);
 
-  if (!S.plane.length) return;
+  const plane = windowOf(S.states, PLANE_TRAIL_SECONDS).filter((p) => p.arousal !== null && p.attention !== null);
+  if (!plane.length) return;
   ctx.strokeStyle = "rgba(17,17,20,0.3)";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  S.plane.forEach((p, i) => (i ? ctx.lineTo(X(p.attention), Y(p.arousal)) : ctx.moveTo(X(p.attention), Y(p.arousal))));
+  plane.forEach((p, i) => (i ? ctx.lineTo(X(p.attention), Y(p.arousal)) : ctx.moveTo(X(p.attention), Y(p.arousal))));
   ctx.stroke();
-  const last = S.plane[S.plane.length - 1];
-  const cur = S.states.length ? S.states[S.states.length - 1].state : "Neutral";
+  const last = plane[plane.length - 1];
+  const cur = S.states[indexAt(S.states, viewEnd(S.states))]?.state ?? "Neutral";
   ctx.fillStyle = STATE_COLORS[cur] || "#fff";
   ctx.strokeStyle = "#fff";
   ctx.lineWidth = 1.5;
@@ -336,20 +385,25 @@ function buildSignals() {
 
 function onFeatures(m) {
   checkTime(m.t);
-  for (const s of SIGNALS) {
-    const v = m.values[s.key];
-    const arr = S.series[s.key];
-    arr.push({ t: m.t, v });
-    trim(arr, m.t, SERIES_SECONDS);
-    $(`v_${s.key}`).innerHTML = `${v === null || v === undefined ? "—" : v.toFixed(s.digits)}<small>${s.unit}</small>`;
-  }
+  S.features.push(m);
+  if (!S.view.live) return;
+  renderSignalValues();
   drawSignals();
 }
 
+function renderSignalValues() {
+  const m = S.features[indexAt(S.features, viewEnd(S.features))];
+  for (const s of SIGNALS) {
+    const v = m?.values[s.key];
+    $(`v_${s.key}`).innerHTML = `${v === null || v === undefined ? "—" : v.toFixed(s.digits)}<small>${s.unit}</small>`;
+  }
+}
+
 function drawSignals() {
+  const recent = windowOf(S.features, SERIES_SECONDS);
   for (const s of SIGNALS) {
     const { plot, win } = SPARKS[s.key];
-    const pts = S.series[s.key].filter((p) => p.v !== null && p.v !== undefined);
+    const pts = recent.map((f) => ({ t: f.t, v: f.values[s.key] })).filter((p) => p.v !== null && p.v !== undefined);
     const mean = S.baseline?.mean?.[s.key];
     const sd = S.baseline?.std?.[s.key];
     const vals = pts.map((p) => p.v);
@@ -368,57 +422,133 @@ function drawSignals() {
   }
 }
 
-// ---- timeline (uPlot axis, state bars drawn under it) -----------------------------
-const TL = { plot: null, win: { t0: 0, t1: 1 } };
+// ---- timeline: the whole session, thumbnails + state bars, click or drag to scrub ------------
+const TL = { hoverX: null, drawnAt: 0, inflight: 0, drawing: false };
+const THUMBS = new Map(); // `${epoch}:${t}` -> { img, ready }
+const TICKS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600];
 
-function drawStates(u) {
-  if (!S.states.length) return;
-  const { ctx } = u;
-  const { left, top, width, height } = u.bbox;
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(left, top, width, height);
-  ctx.clip();
-  S.states.forEach((st, i) => {
-    const next = S.states[i + 1]?.t ?? st.t + 1;
-    const x = Math.floor(u.valToPos(st.t, "x", true));
-    const x2 = Math.ceil(u.valToPos(next, "x", true));
-    ctx.fillStyle = STATE_COLORS[st.state] || "#666";
-    ctx.fillRect(x, top, Math.max(1, x2 - x), height); // integer edges: no seams
-  });
-  ctx.restore();
+function fmtTime(t) {
+  const m = Math.floor(t / 60);
+  const sec = Math.floor(t % 60);
+  return m ? `${m}:${String(sec).padStart(2, "0")}` : `${sec}s`;
 }
 
-function buildTimeline() {
-  const el = $("timeline");
-  TL.plot = new uPlot(
-    {
-      width: Math.max(100, el.clientWidth),
-      height: Math.max(30, el.clientHeight),
-      padding: [0, 0, 0, 0],
-      legend: { show: false },
-      cursor: { show: false },
-      select: { show: false },
-      scales: { x: { time: false, range: () => [TL.win.t0, TL.win.t1] }, y: { range: () => [0, 1] } },
-      axes: [
-        {
-          stroke: MUTED,
-          font: "10px Inter, system-ui, sans-serif",
-          size: 18,
-          space: 50,
-          incrs: [10, 30, 60],
-          ticks: { show: false },
-          grid: { show: false },
-          values: (u, vals) => vals.map((v) => (v < 0 ? "" : `${Math.round(v)}s`)),
-        },
-        { show: false },
-      ],
-      series: [{}, { show: false }],
-      hooks: { drawClear: [drawStates] },
-    },
-    [[], []],
-    el,
-  );
+function thumbFor(t) {
+  const key = `${S.epoch}:${t}`;
+  let th = THUMBS.get(key);
+  if (!th && TL.inflight < 6) {
+    const img = new Image();
+    th = { img, ready: false };
+    THUMBS.set(key, th);
+    TL.inflight += 1;
+    img.onload = () => {
+      th.ready = true;
+      TL.inflight -= 1;
+      drawTimelineThrottled(true);
+    };
+    img.onerror = () => {
+      TL.inflight -= 1;
+      setTimeout(() => THUMBS.delete(key), 2000); // not recorded yet: retry later
+    };
+    img.src = `/api/thumb?t=${t}&w=${THUMB_W}`;
+  }
+  return th && th.ready ? th.img : null;
+}
+
+function drawTimeline() {
+  TL.drawnAt = performance.now();
+  const { ctx, w, h } = fit($("timeline"));
+  ctx.clearRect(0, 0, w, h);
+  const end = sessionEnd();
+  const pps = w / end; // pixels per second
+  const axisH = 15;
+  const barH = 10;
+  const stripH = h - axisH - barH - 4;
+  const barY = Math.max(0, stripH) + 2;
+
+  // Thumbnails: one every `step` seconds, wide enough not to repeat the same picture.
+  if (stripH >= 18) {
+    const aspect = S.liveFrame?.aspect || S.frame?.aspect || 1;
+    const tw = stripH * aspect;
+    const step = THUMB_STEPS.find((v) => v * pps >= tw) || THUMB_STEPS[THUMB_STEPS.length - 1];
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, w, stripH);
+    for (let t = 0; t < end; t += step) {
+      const x = t * pps;
+      const cw = Math.min(step * pps, w - x);
+      const img = thumbFor(t);
+      if (!img) continue;
+      // Cover-crop the thumbnail into its cell.
+      const cellAspect = cw / stripH;
+      const iw = img.naturalWidth;
+      const ih = img.naturalHeight;
+      let sw = iw;
+      let sh = ih;
+      if (iw / ih > cellAspect) sw = ih * cellAspect;
+      else sh = iw / cellAspect;
+      ctx.drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, x, 0, cw, stripH);
+    }
+  }
+
+  // State bars.
+  ctx.fillStyle = css("--panel-2");
+  ctx.fillRect(0, barY, w, barH);
+  S.states.forEach((st, i) => {
+    const next = S.states[i + 1]?.t ?? st.t + 1;
+    const x = Math.floor(st.t * pps);
+    const x2 = Math.ceil(next * pps);
+    ctx.fillStyle = STATE_COLORS[st.state] || "#666";
+    ctx.fillRect(x, barY, Math.max(1, x2 - x), barH); // integer edges: no seams
+  });
+
+  // Axis.
+  const tick = TICKS.find((v) => v * pps >= 70) || TICKS[TICKS.length - 1];
+  ctx.fillStyle = MUTED;
+  ctx.font = "10px Inter, system-ui, sans-serif";
+  ctx.textBaseline = "alphabetic";
+  for (let t = 0; t <= end; t += tick) {
+    const x = Math.round(t * pps);
+    ctx.fillRect(x, barY + barH, 1, 3);
+    ctx.textAlign = t === 0 ? "left" : "center";
+    ctx.fillText(fmtTime(t), t === 0 ? 1 : Math.min(x, w - 14), h - 2);
+  }
+
+  // Hover time.
+  if (TL.hoverX !== null) {
+    const x = Math.max(0, Math.min(w, TL.hoverX));
+    ctx.fillStyle = "rgba(17,17,20,0.35)";
+    ctx.fillRect(Math.round(x), 0, 1, barY + barH);
+    const label = fmtTime((x / w) * end);
+    const lw = ctx.measureText(label).width + 8;
+    ctx.fillStyle = "rgba(17,17,20,0.85)";
+    roundRect(ctx, Math.min(Math.max(0, x - lw / 2), w - lw), 2, lw, 15, 4);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "left";
+    ctx.fillText(label, Math.min(Math.max(0, x - lw / 2), w - lw) + 4, 13);
+  }
+
+  // Playhead: at the right edge while live.
+  const px = Math.max(1, Math.min(w - 1, (S.view.live ? end : S.view.t) * pps));
+  ctx.fillStyle = S.view.live ? "#16a34a" : "#2563eb";
+  ctx.fillRect(Math.round(px) - 1, 0, 2, barY + barH);
+  ctx.beginPath();
+  ctx.moveTo(px - 5, 0);
+  ctx.lineTo(px + 5, 0);
+  ctx.lineTo(px, 7);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// The session grows ~10 times a second; redrawing the strip that often is wasted work.
+function drawTimelineThrottled(now) {
+  if (TL.drawing) return;
+  const wait = now ? 0 : Math.max(0, 500 - (performance.now() - TL.drawnAt));
+  TL.drawing = true;
+  setTimeout(() => {
+    TL.drawing = false;
+    drawTimeline();
+  }, wait);
 }
 
 function buildLegend() {
@@ -427,12 +557,122 @@ function buildLegend() {
     .join("");
 }
 
-function drawTimeline() {
-  if (!S.states.length) return;
-  const tEnd = S.states[S.states.length - 1].t;
-  const span = Math.max(30, Math.min(TIMELINE_SECONDS, tEnd - S.states[0].t + 1));
-  TL.win = { t0: tEnd - span, t1: tEnd };
-  TL.plot.setData([[TL.win.t0, TL.win.t1], [null, null]]);
+// ---- review: scrub back through the recording, or follow live --------------------------
+let frameBusy = false;
+let framePending = null;
+
+async function fetchFrame(t) {
+  if (frameBusy) {
+    framePending = t; // only the newest request matters while scrubbing
+    return;
+  }
+  frameBusy = true;
+  try {
+    const r = await fetch(`/api/frame?t=${t.toFixed(2)}`);
+    if (r.ok && !S.view.live) showFrame(await r.json());
+  } catch {}
+  frameBusy = false;
+  if (framePending !== null) {
+    const next = framePending;
+    framePending = null;
+    if (!S.view.live) fetchFrame(next);
+  }
+}
+
+function updateModeUi() {
+  const live = S.view.live;
+  $("tlLive").classList.toggle("primary", live);
+  $("tlLive").textContent = live ? "● Live" : "Go live";
+  $("tlPlay").disabled = live;
+  $("tlPlay").textContent = S.view.playing ? "Pause" : "Play";
+  $("clock").classList.toggle("warn", !live);
+}
+
+function seek(t) {
+  S.view.live = false;
+  S.view.t = Math.max(0, Math.min(t, sessionEnd()));
+  $("latency").hidden = true;
+  updateModeUi();
+  fetchFrame(S.view.t);
+  renderView();
+}
+
+function goLive() {
+  S.view.live = true;
+  S.view.playing = false;
+  framePending = null;
+  updateModeUi();
+  if (S.liveFrame) showFrame(S.liveFrame);
+  renderView();
+}
+
+function togglePlay() {
+  if (S.view.live) return;
+  S.view.playing = !S.view.playing;
+  updateModeUi();
+}
+
+// Playback of the recording at its original speed, fetched frame by frame.
+let lastTick = 0;
+let lastKey = "";
+function playbackTick(now) {
+  const dt = lastTick ? (now - lastTick) / 1000 : 0;
+  lastTick = now;
+  if (S.view.playing && !S.view.live) {
+    S.view.t += Math.min(dt, 0.25);
+    if (S.view.t >= sessionEnd() - 0.1) {
+      goLive();
+    } else {
+      fetchFrame(S.view.t);
+      const key = `${indexAt(S.states, S.view.t)}:${indexAt(S.features, S.view.t)}`;
+      if (key !== lastKey) {
+        lastKey = key;
+        renderView();
+      } else {
+        drawTimeline();
+      }
+    }
+  }
+  requestAnimationFrame(playbackTick);
+}
+
+function setupTimeline() {
+  const canvas = $("timeline");
+  const timeAt = (e) => {
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, t: ((e.clientX - r.left) / r.width) * sessionEnd(), w: r.width };
+  };
+  let dragging = false;
+  canvas.addEventListener("pointerdown", (e) => {
+    dragging = true;
+    canvas.setPointerCapture(e.pointerId);
+    const { x, t, w } = timeAt(e);
+    if (x >= w - 3) goLive();
+    else seek(t);
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    const { x, t } = timeAt(e);
+    TL.hoverX = x;
+    if (dragging) seek(t);
+    else drawTimelineThrottled(true);
+  });
+  const end = () => (dragging = false);
+  canvas.addEventListener("pointerup", end);
+  canvas.addEventListener("pointercancel", end);
+  canvas.addEventListener("pointerleave", () => {
+    TL.hoverX = null;
+    drawTimelineThrottled(true);
+  });
+  // Keep the panel header's buttons from starting a panel drag.
+  for (const id of ["tlPlay", "tlLive"]) {
+    for (const ev of ["mousedown", "touchstart", "pointerdown"]) {
+      $(id).addEventListener(ev, (e) => e.stopPropagation());
+    }
+  }
+  $("tlLive").onclick = goLive;
+  $("tlPlay").onclick = togglePlay;
+  updateModeUi();
+  requestAnimationFrame(playbackTick);
 }
 
 // ---- status & controls ---------------------------------------------------------------
@@ -462,18 +702,29 @@ function onStatus(m) {
   }
   if (m.error) toast(`Pipeline error: ${m.error}`);
   else if (m.ended) toast("Replay finished.", 4000);
-  if ("loop" in m && m.loop > 0) resetHistory();
+  if ("loop" in m && m.loop !== S.epoch) {
+    S.epoch = m.loop;
+    S.lastT = 0; // a new run: old thumbnails belong to another recording
+    THUMBS.clear();
+    if (m.loop > 0) {
+      resetHistory();
+      goLive();
+    }
+  }
 }
 
 function resetHistory() {
   S.states = [];
-  S.plane = [];
-  for (const k in S.series) S.series[k] = [];
+  S.features = [];
 }
 
-// Time going backwards means the replay restarted: start the charts afresh.
+// Time going backwards means the replay restarted (or the page reconnected and the server
+// is replaying the history): start the charts afresh.
 function checkTime(t) {
-  const last = S.states.length ? S.states[S.states.length - 1].t : -Infinity;
+  const last = Math.max(
+    S.states.length ? S.states[S.states.length - 1].t : -Infinity,
+    S.features.length ? S.features[S.features.length - 1].t : -Infinity,
+  );
   if (t < last - 1) resetHistory();
 }
 
@@ -504,9 +755,19 @@ $("showBoxes").onchange = (e) => {
   drawVideo();
 };
 document.addEventListener("keydown", (e) => {
-  if (e.code === "Space" && e.target === document.body) {
+  if (e.target !== document.body) return;
+  if (e.code === "Space") {
     e.preventDefault();
-    $("pause").click();
+    if (S.view.live) $("pause").click();
+    else togglePlay();
+  } else if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
+    e.preventDefault();
+    const step = (e.shiftKey ? 10 : 1) * (e.code === "ArrowLeft" ? -1 : 1);
+    const from = S.view.live ? sessionEnd() : S.view.t;
+    if (step > 0 && !S.view.live && from + step >= sessionEnd()) goLive();
+    else seek(from + step);
+  } else if (e.code === "Escape" && !S.view.live) {
+    goLive();
   }
 });
 // ---- websocket ------------------------------------------------------------------------
@@ -546,7 +807,7 @@ async function loadInfo() {
 }
 
 // ---- grid layout (GridStack) --------------------------------------------------------
-const GRID_ROWS = 20; // default layout height, in rows: the cell height scales so it fills the window
+const GRID_ROWS = 22; // default layout height, in rows: the cell height scales so it fills the window
 let grid = null;
 
 function resizePlots() {
@@ -555,10 +816,6 @@ function resizePlots() {
     const h = Math.max(16, el.clientHeight);
     if (plot.width !== w || plot.height !== h) plot.setSize({ width: w, height: h });
   }
-  const tl = $("timeline");
-  const w = Math.max(100, tl.clientWidth);
-  const h = Math.max(30, tl.clientHeight);
-  if (TL.plot.width !== w || TL.plot.height !== h) TL.plot.setSize({ width: w, height: h });
 }
 
 function redrawAll() {
@@ -576,7 +833,7 @@ function fitRows() {
 }
 
 function setupGrid() {
-  const KEY = "ariasense-grid-v2";
+  const KEY = "ariasense-grid-v3";
   grid = GridStack.init(
     { column: 12, cellHeight: 24, margin: 3, float: false, handle: ".panel-head", resizable: { handles: "se,e,s" } },
     "#grid",
@@ -620,8 +877,8 @@ function setupGrid() {
 }
 
 buildSignals();
-buildTimeline();
 buildLegend();
+setupTimeline();
 setupGrid();
 drawPlane();
 loadInfo();

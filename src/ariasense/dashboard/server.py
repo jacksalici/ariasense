@@ -12,14 +12,15 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from ariasense.dashboard.recording import Recording
 from ariasense.pipeline import DemoPipeline, Message
 
 STATIC_DIR = Path(__file__).parent / "static"
-HISTORY = 300  # seconds of features/state replayed to a newly connected browser
+HISTORY = 6 * 3600  # seconds of features/state replayed to a newly connected browser
 MAX_QUEUED_FRAMES = 2  # a slow client skips frames instead of lagging behind
 
 
@@ -31,6 +32,7 @@ class Hub:
         self.clients: set[asyncio.Queue[Message]] = set()
         self.history: deque[Message] = deque(maxlen=2 * HISTORY)
         self.latest: dict[str, Message] = {}
+        self.recording = Recording()  # every frame, for the timeline scrubber
 
     def emit(self, msg: Message) -> None:
         """Thread-safe: called from the pipeline thread."""
@@ -44,9 +46,12 @@ class Hub:
         elif kind == "status":
             if "loop" in msg:  # replay restarted: time starts again from 0
                 self.history.clear()
+                self.recording.clear()
             self.latest["status"] = {**self.latest.get("status", {}), **msg}
         else:
             self.latest[kind] = msg
+            if kind == "frame":
+                self.recording.add(msg)
         for q in self.clients:
             if kind == "frame" and q.qsize() > MAX_QUEUED_FRAMES:
                 continue
@@ -84,6 +89,7 @@ def create_app(pipeline: DemoPipeline, info: dict[str, Any] | None = None) -> Fa
         yield
         pipeline.shutdown()  # also stops the glasses' stream in live mode
         thread.join(timeout=5)
+        hub.recording.close()
 
     app = FastAPI(title="Aria Gen 2 Demo", lifespan=lifespan)
     app.state.hub = hub
@@ -101,6 +107,21 @@ def create_app(pipeline: DemoPipeline, info: dict[str, Any] | None = None) -> Fa
             "loop": pipeline.loop,
             "paused": pipeline.controls.paused,
         }
+
+    @app.get("/api/frame")
+    def get_frame(t: float) -> Response:
+        """The recorded camera frame (JPEG, gaze, detections) at or just before time `t`."""
+        msg = hub.recording.frame(t)
+        if msg is None:
+            return Response(status_code=404)
+        return JSONResponse(msg)
+
+    @app.get("/api/thumb")
+    def get_thumb(t: float, w: int = 160) -> Response:
+        data = hub.recording.thumbnail(t, min(max(w, 16), 640))
+        if data is None:
+            return Response(status_code=404)
+        return Response(data, media_type="image/jpeg")
 
     @app.post("/api/control")
     async def control(c: Control) -> dict[str, Any]:

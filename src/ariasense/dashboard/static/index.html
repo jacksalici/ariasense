@@ -100,10 +100,16 @@
       </div>
     </div>
 
-    <div class="grid-stack-item" gs-id="timeline" gs-x="0" gs-y="16" gs-w="12" gs-h="4" gs-min-w="4" gs-min-h="3">
+    <div class="grid-stack-item" gs-id="timeline" gs-x="0" gs-y="16" gs-w="12" gs-h="6" gs-min-w="4" gs-min-h="3">
       <div class="grid-stack-item-content panel">
-        <div class="panel-head"><h2>State timeline</h2><div class="legend" id="legend"></div></div>
-        <div class="fill" data-draw="timeline" id="timeline"></div>
+        <div class="panel-head">
+          <h2>Timeline</h2>
+          <button id="tlLive" class="primary" title="Follow the live stream (Esc)">● Live</button>
+          <button id="tlPlay" title="Play the recording from here (space)" disabled>Play</button>
+          <span class="muted tl-hint">click or drag to look back · ← → step</span>
+          <div class="legend" id="legend"></div>
+        </div>
+        <div class="fill" data-draw="timeline"><canvas id="timeline"></canvas></div>
       </div>
     </div>
   </main>
