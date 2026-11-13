@@ -51,7 +51,7 @@ select { padding: 3px 6px; }
 .select, .toggle { display: flex; align-items: center; gap: 5px; color: var(--muted); }
 
 /* KPI strip */
-.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
 .kpi { display: flex; flex-direction: column; gap: 1px; padding: 10px 16px; border-right: 1px solid var(--line); min-width: 0; }
 .kpi:last-child { border-right: 0; }
 .kpi-label { color: var(--muted); }
@@ -109,7 +109,7 @@ select { padding: 3px 6px; }
 }
 
 @media (max-width: 1000px) {
-  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 .spark > .uplot, .fill > .uplot { position: absolute; left: 0; top: 0; }
@@ -119,3 +119,25 @@ select { padding: 3px 6px; }
 .panel-head button { align-self: center; padding: 1px 8px; font-size: 11px; cursor: pointer; }
 .panel-head button:disabled { opacity: 0.45; cursor: default; }
 .fill > canvas#timeline { cursor: col-resize; touch-action: none; }
+
+/* empty video */
+.fill.dark { position: relative; }
+.empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #a1a1aa; font-size: 13px; text-align: center; padding: 16px; }
+.empty:empty { display: none; }
+
+/* open file dialog */
+.dialog { border: 1px solid var(--line); border-radius: 10px; padding: 16px; width: min(520px, calc(100vw - 32px)); color: var(--text); }
+.dialog::backdrop { background: rgba(17, 17, 20, 0.35); }
+.dialog h2 { font-size: 14px; }
+.dialog p { margin: 4px 0 10px; }
+.files { list-style: none; margin: 0 0 12px; padding: 0; max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }
+.files:empty::after { content: "No .vrs files found."; display: block; padding: 10px; color: var(--muted); }
+.files li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 10px; cursor: pointer; border-bottom: 1px solid var(--line); }
+.files li:last-child { border-bottom: 0; }
+.files li:hover { background: var(--panel-2); }
+.files li.sel { background: #eef2ff; }
+.files li span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.path { display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
+.path input { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--text); }
+.dialog .error { color: #b91c1c; }
+.dialog .actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }

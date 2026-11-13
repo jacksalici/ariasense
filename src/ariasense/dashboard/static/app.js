@@ -42,7 +42,7 @@ const S = {
   epoch: null, // replay run; thumbnails are only valid within one
   paused: false,
   showBoxes: true,
-  sourceLabel: "",
+  session: 0, // bumped by the server when another recording is opened
   lastT: 0,
 };
 
@@ -192,14 +192,15 @@ function renderState(m) {
   $("confFill").style.background = color;
   $("confText").textContent = m.state === "Calibrating" ? "—" : `${Math.round(m.confidence * 100)}%`;
   $("candidate").textContent =
-    m.candidate && m.candidate !== m.state && m.state !== "Startled" ? `→ ${m.candidate}?` : "not a measured emotion";
+    m.candidate && m.candidate !== m.state && m.state !== "Startled" ? `→ ${m.candidate}?` : "";
   $("reasons").innerHTML = (m.reasons || []).map((r) => `<li>${escapeHtml(r)}</li>`).join("");
 
   const calibrating = m.baseline_progress < 1;
   $("calib").hidden = !calibrating;
   $("calibFill").style.width = `${Math.round(m.baseline_progress * 100)}%`;
 
-  renderBars(m.attention_totals || {}, m.attention_switches || 0);
+  renderBars(m.attention_totals || {});
+  $("switches").textContent = String(m.attention_switches || 0);
 }
 
 function escapeHtml(s) {
@@ -238,17 +239,19 @@ function sessionEnd() {
 function renderView() {
   const st = S.states[indexAt(S.states, viewEnd(S.states))];
   if (st) renderState(st);
-  else renderBars({}, 0);
+  else resetKpis();
   renderSignalValues();
   drawPlane();
   drawSignals();
   drawTimeline();
 }
 
-function renderBars(totals, switches) {
+function renderBars(totals) {
   const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, 6);
-  $("switches").textContent = switches ? `${switches} switches` : "";
-  if (!entries.length) return;
+  if (!entries.length) {
+    $("attnBars").innerHTML = '<p class="muted">No attended objects yet.</p>';
+    return;
+  }
   const max = entries[0][1] || 1;
   $("attnBars").innerHTML = entries
     .map(
@@ -434,7 +437,7 @@ function fmtTime(t) {
 }
 
 function thumbFor(t) {
-  const key = `${S.epoch}:${t}`;
+  const key = `${S.session}:${S.epoch}:${t}`;
   let th = THUMBS.get(key);
   if (!th && TL.inflight < 6) {
     const img = new Image();
@@ -471,7 +474,7 @@ function drawTimeline() {
     const aspect = S.liveFrame?.aspect || S.frame?.aspect || 1;
     const tw = stripH * aspect;
     const step = THUMB_STEPS.find((v) => v * pps >= tw) || THUMB_STEPS[THUMB_STEPS.length - 1];
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = S.lastT > 0 ? "#000" : css("--panel-2");
     ctx.fillRect(0, 0, w, stripH);
     for (let t = 0; t < end; t += step) {
       const x = t * pps;
@@ -677,6 +680,11 @@ function setupTimeline() {
 
 // ---- status & controls ---------------------------------------------------------------
 function onStatus(m) {
+  if ("session" in m && m.session !== S.session) {
+    S.session = m.session; // another recording was opened: start from scratch
+    resetSession();
+    loadInfo();
+  }
   if ("paused" in m) {
     S.paused = m.paused;
     $("pause").textContent = m.paused ? "Resume" : "Pause";
@@ -696,10 +704,6 @@ function onStatus(m) {
     $("banner").hidden = !notes.length;
     $("banner").textContent = notes.join("  ");
   }
-  if (m.streams) {
-    const rates = Object.entries(m.streams).map(([k, v]) => `${k} ${Math.round(v)} Hz`).join(" · ");
-    $("source").textContent = `${S.sourceLabel} · ${rates}${m.dropped_rgb ? ` · ${m.dropped_rgb} frames skipped` : ""}`;
-  }
   if (m.error) toast(`Pipeline error: ${m.error}`);
   else if (m.ended) toast("Replay finished.", 4000);
   if ("loop" in m && m.loop !== S.epoch) {
@@ -711,6 +715,31 @@ function onStatus(m) {
       goLive();
     }
   }
+}
+
+function resetKpis() {
+  $("stateName").textContent = "—";
+  $("stateName").style.color = "";
+  $("confText").textContent = "—";
+  $("confFill").style.width = "0%";
+  $("candidate").textContent = "";
+  $("reasons").innerHTML = "";
+  $("switches").textContent = "—";
+  renderBars({});
+}
+
+function resetSession() {
+  resetHistory();
+  Object.assign(S, { lastT: 0, frame: null, liveFrame: null, baseline: null, imageReady: false, epoch: null });
+  THUMBS.clear();
+  $("toast").hidden = true;
+  $("lookingObj").textContent = "—";
+  $("lookingDwell").textContent = "—";
+  $("clock").textContent = "t = 0.0 s";
+  const { ctx, w, h } = fit($("video"), 16 / 9);
+  ctx.clearRect(0, 0, w, h);
+  $("stageEmpty").textContent = "Waiting for the first frame…";
+  goLive();
 }
 
 function resetHistory() {
@@ -774,12 +803,12 @@ document.addEventListener("keydown", (e) => {
 function connect() {
   const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
   ws.onopen = () => {
-    $("conn").textContent = "live";
-    $("conn").className = "pill ok";
+    if (S.reconnecting) $("toast").hidden = true;
+    S.reconnecting = false;
   };
   ws.onclose = () => {
-    $("conn").textContent = "reconnecting…";
-    $("conn").className = "pill warn";
+    if (!S.reconnecting) toast("Connection lost — reconnecting…");
+    S.reconnecting = true;
     setTimeout(connect, 1000);
   };
   ws.onmessage = (ev) => {
@@ -797,14 +826,85 @@ function connect() {
 async function loadInfo() {
   try {
     const info = await (await fetch("/api/info")).json();
-    S.sourceLabel = `${info.source || "source"} · baseline ${info.baseline_s}s${info.loop ? " · looping" : ""}`;
-    $("source").textContent = S.sourceLabel;
     S.paused = info.paused;
+    $("pause").textContent = info.paused ? "Resume" : "Pause";
     $("speedBox").hidden = info.mode !== "replay"; // speed only applies to file replay
+    $("openFile").hidden = !info.can_open;
+    $("openFile").title = info.source ? `Open a VRS recording (now: ${info.source})` : "Open a VRS recording";
+    document.title = info.source ? `AriaSense · ${info.source}` : "AriaSense";
+    if (!info.source && !S.liveFrame) {
+      resetKpis();
+      $("calib").hidden = true;
+      $("stageEmpty").textContent = info.can_open ? "No recording open. Use Open file to start." : "No source.";
+    }
+  } catch {}
+}
+
+// ---- open a recording ---------------------------------------------------------------
+let chosenPath = "";
+
+async function showOpenDialog() {
+  const dlg = $("openDialog");
+  $("openError").hidden = true;
+  $("openPath").value = "";
+  chosenPath = "";
+  $("fileList").innerHTML = "";
+  dlg.showModal();
+  try {
+    const { dir, files } = await (await fetch("/api/files")).json();
+    $("openDir").textContent = `Recordings in ${dir}/`;
+    $("fileList").innerHTML = files
+      .map(
+        (f) => `<li data-path="${escapeHtml(f.path)}"><span>${escapeHtml(f.name)}</span><span>${f.size_mb} MB</span></li>`,
+      )
+      .join("");
   } catch {
-    $("source").textContent = "info unavailable";
+    $("openDir").textContent = "Could not list recordings.";
   }
 }
+
+async function openChosen() {
+  const path = $("openPath").value.trim() || chosenPath;
+  if (!path) {
+    $("openError").textContent = "Pick a recording or type a path.";
+    $("openError").hidden = false;
+    return;
+  }
+  $("openGo").disabled = true;
+  try {
+    const r = await (
+      await fetch("/api/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      })
+    ).json();
+    if (!r.ok) throw new Error(r.error);
+    $("openDialog").close();
+  } catch (e) {
+    $("openError").textContent = String(e.message || e);
+    $("openError").hidden = false;
+  } finally {
+    $("openGo").disabled = false;
+  }
+}
+
+$("openFile").onclick = showOpenDialog;
+$("openCancel").onclick = () => $("openDialog").close();
+$("openForm").onsubmit = (e) => {
+  e.preventDefault();
+  openChosen();
+};
+$("fileList").onclick = (e) => {
+  const li = e.target.closest("li");
+  if (!li) return;
+  chosenPath = li.dataset.path;
+  $("openPath").value = "";
+  document.querySelectorAll("#fileList li").forEach((el) => el.classList.toggle("sel", el === li));
+};
+$("fileList").ondblclick = (e) => {
+  if (e.target.closest("li")) openChosen();
+};
 
 // ---- grid layout (GridStack) --------------------------------------------------------
 const GRID_ROWS = 22; // default layout height, in rows: the cell height scales so it fills the window

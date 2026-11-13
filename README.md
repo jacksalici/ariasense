@@ -74,9 +74,17 @@ Replay a recording through the full pipeline and open the dashboard at http://12
 uv run ariasense dashboard data/s01_desk.vrs --baseline 60
 ```
 
+Or start an empty dashboard and pick the recording in the browser with **Open file**:
+
+```bash
+uv run ariasense dashboard
+```
+
+Open file lists the `.vrs` files under `data/` (change the folder with `--data-dir`), or takes any path on this machine. Opening a file replaces whatever is playing, including the live stream.
+
 The dashboard shows:
-- the camera view, with the gaze dot and trail, YOLO boxes, and the object you're looking at with its dwell time;
-- the estimated state, with its confidence and reasons;
+- the camera view, with the gaze dot and trail, YOLO boxes, and the object you're looking at with its hold time;
+- the estimated state, with its confidence and reasons, and the number of gaze switches between objects;
 - an arousal × attention plane;
 - live signal charts against the baseline band;
 - attention time per object;

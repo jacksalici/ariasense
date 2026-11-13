@@ -11,11 +11,9 @@
 <body>
   <header class="topbar" id="topbar">
     <div class="title">
-      <h1>AriaSense <span class="muted">/ wearer state</span></h1>
-      <span class="sub" id="source">connecting…</span>
+      <h1>AriaSense</h1>
     </div>
     <div class="controls">
-      <span class="pill" id="conn">offline</span>
       <span class="pill" id="clock">t = 0.0 s</span>
       <span class="pill" id="latency" hidden title="Capture to fully processed, via TicSync">— ms</span>
       <label class="select" id="speedBox">Speed
@@ -27,6 +25,7 @@
         </select>
       </label>
       <label class="toggle"><input type="checkbox" id="showBoxes" checked> Boxes</label>
+      <button id="openFile" title="Open a VRS recording">Open file</button>
       <button id="resetLayout" title="Restore the default panel layout">Reset layout</button>
       <button id="rebaseline" title="Start a new personal baseline">Re-baseline</button>
       <button id="pause" class="primary" title="Pause / resume (space)">Pause</button>
@@ -39,7 +38,7 @@
     <div class="kpi">
       <span class="kpi-label">Estimated state</span>
       <span class="kpi-value" id="stateName">Calibrating</span>
-      <span class="kpi-sub muted" id="candidate">not a measured emotion</span>
+      <span class="kpi-sub muted" id="candidate"></span>
     </div>
     <div class="kpi">
       <span class="kpi-label">Confidence</span>
@@ -49,12 +48,17 @@
     <div class="kpi">
       <span class="kpi-label">Looking at</span>
       <span class="kpi-value" id="lookingObj">—</span>
-      <span class="kpi-sub muted" id="stageEmpty">Waiting for the first frame…</span>
+      <span class="kpi-sub muted"></span>
     </div>
     <div class="kpi">
-      <span class="kpi-label">Dwell</span>
+      <span class="kpi-label">Hold time</span>
       <span class="kpi-value" id="lookingDwell">—</span>
-      <span class="kpi-sub muted" id="switches"></span>
+      <span class="kpi-sub muted"></span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Gaze switches</span>
+      <span class="kpi-value" id="switches">—</span>
+      <span class="kpi-sub muted"></span>
     </div>
   </section>
 
@@ -62,7 +66,10 @@
     <div class="grid-stack-item" gs-id="video" gs-x="0" gs-y="0" gs-w="6" gs-h="16" gs-min-w="3" gs-min-h="6">
       <div class="grid-stack-item-content panel">
         <div class="panel-head"><h2>Camera</h2><span class="muted">RGB · gaze and detections</span></div>
-        <div class="fill dark" data-draw="video"><canvas id="video"></canvas></div>
+        <div class="fill dark" data-draw="video">
+          <canvas id="video"></canvas>
+          <div class="empty" id="stageEmpty">Waiting for the first frame…</div>
+        </div>
       </div>
     </div>
 
@@ -115,6 +122,22 @@
   </main>
 
   <div class="toast" id="toast" hidden></div>
+
+  <dialog id="openDialog" class="dialog">
+    <form method="dialog" id="openForm">
+      <h2>Open a recording</h2>
+      <p class="muted" id="openDir"></p>
+      <ul class="files" id="fileList"></ul>
+      <label class="path">Or a path on this machine
+        <input type="text" id="openPath" placeholder="/path/to/recording.vrs" autocomplete="off" spellcheck="false">
+      </label>
+      <p class="error" id="openError" hidden></p>
+      <div class="actions">
+        <button type="button" id="openCancel">Cancel</button>
+        <button type="submit" class="primary" id="openGo">Open</button>
+      </div>
+    </form>
+  </dialog>
   <script src="/static/vendor/gridstack-all.js"></script>
   <script src="/static/vendor/uPlot.iife.min.js"></script>
   <script src="/static/app.js"></script>

@@ -40,6 +40,7 @@ ShowOpt = Annotated[bool, typer.Option(help="Also show frames in a window (q to 
 SpeedOpt = Annotated[float, typer.Option(help="Playback speed; 0 = as fast as possible.")]
 TrailOpt = Annotated[float, typer.Option(help="Gaze trail length in seconds.")]
 DepthOpt = Annotated[float, typer.Option(help="Gaze depth (m) when the device gives none.")]
+DataDirOpt = Annotated[Path, typer.Option(help="Folder listed by the dashboard's Open file button.")]
 ScaleOpt = Annotated[float, typer.Option(help="Resize factor for the output video.")]
 
 
@@ -227,7 +228,10 @@ def states(
 
 @app.command()
 def dashboard(
-    vrs: VrsArg,
+    vrs: Annotated[
+        Path | None,
+        typer.Argument(exists=True, dir_okay=False, help="VRS recording (omit to open one from the UI)."),
+    ] = None,
     port: Annotated[int, typer.Option(help="HTTP port.")] = 8000,
     host: Annotated[str, typer.Option(help="Bind address (127.0.0.1 = this machine only).")] = "127.0.0.1",
     speed: Annotated[float, typer.Option(help="Replay speed (1 = real time).")] = 1.0,
@@ -238,13 +242,13 @@ def dashboard(
     conf: Annotated[float, typer.Option(help="Detection confidence threshold.")] = 0.35,
     config: Annotated[Path, typer.Option(help="State config YAML.")] = Path("configs/state.yaml"),
     depth: DepthOpt = 1.0,
+    data_dir: DataDirOpt = Path("data"),
 ) -> None:
     """M5: web dashboard replaying a recording (video + gaze + YOLO, signals, estimated state)."""
-    from ariasense.pipeline import vrs_source_factory
-
     _serve(
-        vrs_source_factory(vrs, speed),
-        {"source": vrs.name, "mode": "replay"},
+        vrs,
+        None,
+        speed=speed,
         loop=loop,
         port=port,
         host=host,
@@ -254,29 +258,53 @@ def dashboard(
         conf=conf,
         config=config,
         depth=depth,
+        data_dir=data_dir,
     )
 
 
 def _serve(
-    source_factory, info: dict, *, loop, port, host, baseline_s, model, imgsz, conf, config, depth
+    vrs: Path | None,
+    live: tuple | None,
+    *,
+    speed,
+    loop,
+    port,
+    host,
+    baseline_s,
+    model,
+    imgsz,
+    conf,
+    config,
+    depth,
+    data_dir,
 ) -> None:
+    """Serve the dashboard on a VRS replay, a live (factory, info) pair, or nothing yet."""
     import uvicorn
 
     from ariasense.dashboard.server import create_app
     from ariasense.perception.detector import YoloDetector
-    from ariasense.pipeline import DemoPipeline
+    from ariasense.pipeline import DemoPipeline, vrs_source_factory
     from ariasense.state.config import StateConfig
 
     detector = YoloDetector(model=model, conf=conf, imgsz=imgsz)
-    pipeline = DemoPipeline(
-        source_factory,
-        detector,
-        config=StateConfig.load(config),
-        baseline_s=baseline_s,
-        loop=loop,
-        depth_m=depth,
-    )
-    web = create_app(pipeline, info={**info, "model": model})
+    state_config = StateConfig.load(config)
+
+    def build(factory, info: dict, looping: bool):
+        pipeline = DemoPipeline(
+            factory, detector, config=state_config, baseline_s=baseline_s, loop=looping, depth_m=depth
+        )
+        return pipeline, {**info, "model": model}
+
+    def open_vrs(path: Path):
+        return build(vrs_source_factory(path, speed), {"source": path.name, "mode": "replay"}, loop)
+
+    if live is not None:
+        pipeline, info = build(*live, False)
+    elif vrs is not None:
+        pipeline, info = open_vrs(vrs)
+    else:
+        pipeline, info = None, {"model": model}
+    web = create_app(pipeline, info=info, opener=open_vrs, data_dir=data_dir)
     typer.echo(f"Dashboard: http://{host}:{port}  (YOLO {model} on {detector.device})")
     uvicorn.run(web, host=host, port=port, log_level="warning")
 
@@ -335,13 +363,14 @@ def live(
     conf: Annotated[float, typer.Option(help="Detection confidence threshold.")] = 0.35,
     config: Annotated[Path, typer.Option(help="State config YAML.")] = Path("configs/state.yaml"),
     depth: DepthOpt = 1.0,
+    data_dir: DataDirOpt = Path("data"),
 ) -> None:
     """M6: the dashboard on the live stream from the glasses."""
-    factory, info = _live_factory(replay, interface, profile, serial, control, record)
     _serve(
-        factory,
-        info,
-        loop=False,
+        None,
+        _live_factory(replay, interface, profile, serial, control, record),
+        speed=1.0,
+        loop=True,
         port=port,
         host=host,
         baseline_s=baseline_s,
@@ -350,6 +379,7 @@ def live(
         conf=conf,
         config=config,
         depth=depth,
+        data_dir=data_dir,
     )
 
 

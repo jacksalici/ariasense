@@ -236,3 +236,42 @@ def test_pipeline_reports_no_signal_and_does_not_calibrate_when_not_worn():
     assert "no pulse on the nose pad" in states[-1]["reasons"]
     assert not any(m["type"] == "baseline" for m in msgs)  # baseline never built from unworn data
     assert states[-1]["baseline_progress"] == 0
+
+
+def test_empty_dashboard_opens_a_recording_from_the_ui(tmp_path):
+    from ariasense.dashboard.server import find_recordings
+
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "a.vrs").write_bytes(b"x" * 10)
+    (tmp_path / "notes.txt").write_text("not a recording")
+    opened = []
+
+    def opener(path):
+        opened.append(path)
+        return make_pipeline(), {"source": path.name, "mode": "replay"}
+
+    app = create_app(None, opener=opener, data_dir=tmp_path)
+    with TestClient(app) as client:
+        info = client.get("/api/info").json()
+        assert info["can_open"] and "source" not in info and info["baseline_s"] is None
+        assert client.post("/api/control", json={"action": "pause"}).json()["ok"] is False
+
+        files = client.get("/api/files").json()["files"]
+        assert [f["name"] for f in files] == ["sub/a.vrs"]
+        assert client.post("/api/open", json={"path": str(tmp_path / "notes.txt")}).json()["ok"] is False
+
+        r = client.post("/api/open", json={"path": files[0]["path"]}).json()
+        assert r == {"ok": True, "source": "a.vrs"} and opened == [tmp_path / "sub" / "a.vrs"]
+        assert client.get("/api/info").json()["source"] == "a.vrs"
+        hub = app.state.hub
+        assert hub.session == 1 and hub.latest["status"]["session"] == 1
+
+        client.post("/api/open", json={"path": files[0]["path"]})  # replaces the running pipeline
+        assert hub.session == 2 and len(opened) == 2
+    assert find_recordings(tmp_path / "missing") == []
+
+
+def test_dashboard_without_opener_cannot_open_files():
+    with TestClient(create_app(make_pipeline())) as client:
+        assert client.get("/api/info").json()["can_open"] is False
+        assert client.post("/api/open", json={"path": "x.vrs"}).json()["ok"] is False
