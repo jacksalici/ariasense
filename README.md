@@ -1,10 +1,69 @@
-# AriaSense
+<div align="center">
 
-AriaSense is a live demo for Meta Project Aria Gen 2. The dashboard shows:
+# 👓 AriaSense
 
-- **What you're looking at:** YOLO detections on the RGB camera, with the object under your gaze highlighted.
-- **How you're doing:** heart rate, HRV, blinks and fixations from the glasses' sensors.
-- **An estimated state** (Focused, Startled, Stressed, Calm, Distracted, Fatigued), together with the reasons behind it.
+**See what you look at. Sense how you're doing.**
+
+A live demo for [Meta Project Aria Gen 2](https://www.projectaria.com/) glasses that fuses gaze, object detection and physiological signals into a real-time estimate of the wearer's state.
+
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
+![uv](https://img.shields.io/badge/managed%20with-uv-DE5FE9?logo=uv&logoColor=white)
+![FastAPI](https://img.shields.io/badge/backend-FastAPI-009688?logo=fastapi&logoColor=white)
+![YOLO26](https://img.shields.io/badge/detection-YOLO26-00FFFF?logo=ultralytics&logoColor=black)
+![Project Aria Gen 2](https://img.shields.io/badge/device-Project%20Aria%20Gen%202-0467DF?logo=meta&logoColor=white)
+![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-D7FF64?logo=ruff&logoColor=black)
+
+<img src="docs/images/dashboard.png" alt="AriaSense dashboard: RGB camera with gaze dot and YOLO boxes, estimated state, signal charts, arousal × attention plane and session timeline" width="100%">
+
+<sub>The dashboard replaying a desk session: the wearer is <b>Calm</b> and has been looking at the laptop for 2.3 s.</sub>
+
+</div>
+
+## ✨ What it does
+
+| | |
+|---|---|
+| 🎯 **What you're looking at** | YOLO detections on the RGB camera, with the object under your gaze highlighted and its hold time. |
+| 💓 **How you're doing** | Heart rate, HRV, blinks, fixations, gaze spread and head motion from the glasses' sensors, z-scored against a personal baseline. |
+| 🧠 **An estimated state** | Calm, Focused, Distracted, Stressed, Fatigued or Startled, with a confidence and the reasons behind it. |
+| ⏪ **A scrubbable timeline** | Video thumbnails and the state over the whole session. Click or drag to look back at any moment. |
+| 📡 **Recorded or live** | Develop and demo on `.vrs` recordings, then switch to the live stream from the glasses over USB or Wi-Fi. |
+
+> [!NOTE]
+> The states are *estimated* physiological and attentional states, not measured emotions.
+
+## 🧩 How it works
+
+```mermaid
+flowchart LR
+    A["Aria Gen 2<br/>.vrs file or live stream"] --> B["Sync &<br/>calibration"]
+    B --> C["Perception<br/>YOLO26 + gaze"]
+    B --> D["Physio features<br/>PPG, eye, IMU"]
+    C --> E["State rules<br/>configs/state.yaml"]
+    D --> E
+    E --> F["FastAPI<br/>WebSocket /ws"]
+    F --> G["Web dashboard"]
+```
+
+## 🚀 Quick start
+
+Requires [uv](https://docs.astral.sh/uv/) (Python 3.12 is pinned in `.python-version`).
+
+```bash
+uv sync
+uv run ariasense dashboard data/s01_desk.vrs --baseline 60
+```
+
+Then open http://127.0.0.1:8000.
+
+## 📚 Contents
+
+- [Setup](#setup)
+- [Usage](#usage)
+- [Dashboard](#dashboard)
+- [Live from the glasses](#live-from-the-glasses)
+- [Development](#development)
+- [Docs](#docs)
 
 ## Setup
 
