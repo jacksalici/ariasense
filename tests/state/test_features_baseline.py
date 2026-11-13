@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 
-from aria_demo.state.baseline import MIN_STD, Baseline
-from aria_demo.state.features import FEATURES, FeatureExtractor, FeatureVector, extract
-from aria_demo.types import AlsSample, EyeGazeSample, ImuSample, PpgSample
+from ariasense.state.baseline import MIN_STD, Baseline
+from ariasense.state.features import FEATURES, FeatureExtractor, FeatureVector, extract
+from ariasense.types import AlsSample, EyeGazeSample, ImuSample, PpgSample
 
 SEC = 1_000_000_000
 

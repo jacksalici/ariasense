@@ -9,9 +9,9 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from aria_demo.calibration.projection import GazeProjector, Pixel, upright
-from aria_demo.sync import History
-from aria_demo.types import Detection, EyeGazeSample, RgbFrame, Sample
+from ariasense.calibration.projection import GazeProjector, Pixel, upright
+from ariasense.sync import History
+from ariasense.types import Detection, EyeGazeSample, RgbFrame, Sample
 
 MAX_GAZE_AGE_NS = 60_000_000  # gaze older than 60 ms is not drawn on a frame
 
@@ -199,7 +199,7 @@ def write_video(
                 frame_rgb = cv2.resize(frame_rgb, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
             bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
             if show:
-                cv2.imshow("aria-demo (q to quit)", bgr)
+                cv2.imshow("ariasense (q to quit)", bgr)
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     break
             if writer is None:

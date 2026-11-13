@@ -23,8 +23,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from aria_demo.sources import convert
-from aria_demo.types import RgbFrame, Sample
+from ariasense.sources import convert
+from ariasense.types import RgbFrame, Sample
 
 STREAMING_INTERFACES = ("usb", "wifi_sta", "wifi_sap")
 RECEIVER_PORT = 6768

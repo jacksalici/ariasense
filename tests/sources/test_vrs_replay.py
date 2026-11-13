@@ -2,9 +2,9 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from aria_demo.sources.base import Pacer, Signal
-from aria_demo.sources.vrs_replay import select_streams, to_sample
-from aria_demo.types import EyeGazeSample, ImuSample, PpgSample, RgbFrame
+from ariasense.sources.base import Pacer, Signal
+from ariasense.sources.vrs_replay import select_streams, to_sample
+from ariasense.types import EyeGazeSample, ImuSample, PpgSample, RgbFrame
 
 
 class FakeProvider:

@@ -8,10 +8,10 @@ from pathlib import Path
 
 import numpy as np
 
-from aria_demo.state.baseline import Baseline
-from aria_demo.state.estimator import StateEstimate
-from aria_demo.state.evaluate import Segment
-from aria_demo.state.features import FEATURES, FeatureVector
+from ariasense.state.baseline import Baseline
+from ariasense.state.estimator import StateEstimate
+from ariasense.state.evaluate import Segment
+from ariasense.state.features import FEATURES, FeatureVector
 
 PLOTTED = [
     "hr_bpm",

@@ -7,9 +7,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from aria_demo.overlay import GazeFrame, draw_detections, draw_gaze, draw_status
-from aria_demo.perception.attention import AttentionState, AttentionTracker, pick_attended
-from aria_demo.types import Detection
+from ariasense.overlay import GazeFrame, draw_detections, draw_gaze, draw_status
+from ariasense.perception.attention import AttentionState, AttentionTracker, pick_attended
+from ariasense.types import Detection
 
 Detector = Callable[[np.ndarray], list[Detection]]
 

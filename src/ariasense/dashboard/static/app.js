@@ -576,7 +576,7 @@ function fitRows() {
 }
 
 function setupGrid() {
-  const KEY = "aria-demo-grid-v2";
+  const KEY = "ariasense-grid-v2";
   grid = GridStack.init(
     { column: 12, cellHeight: 24, margin: 3, float: false, handle: ".panel-head", resizable: { handles: "se,e,s" } },
     "#grid",

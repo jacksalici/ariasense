@@ -2,10 +2,10 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from aria_demo.overlay import ATTENDED_COLOR, GazeFrame
-from aria_demo.perception.detector import to_detections
-from aria_demo.perception.pipeline import draw, perceive
-from aria_demo.types import Detection
+from ariasense.overlay import ATTENDED_COLOR, GazeFrame
+from ariasense.perception.detector import to_detections
+from ariasense.perception.pipeline import draw, perceive
+from ariasense.types import Detection
 
 MS = 1_000_000
 CUP = Detection("cup", 0.9, (10, 10, 40, 40), track_id=7)

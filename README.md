@@ -1,6 +1,6 @@
-# Aria Gen 2 Demo
+# AriaSense
 
-A live demo for Meta Project Aria Gen 2. The dashboard shows:
+AriaSense is a live demo for Meta Project Aria Gen 2. The dashboard shows:
 
 - **What you're looking at:** YOLO detections on the RGB camera, with the object under your gaze highlighted.
 - **How you're doing:** heart rate, HRV, blinks and fixations from the glasses' sensors.
@@ -19,19 +19,19 @@ uv sync
 Inspect a recording, i.e. list its streams, rates and available fields:
 
 ```bash
-uv run aria-demo inspect data/s01_desk.vrs
+uv run ariasense inspect data/s01_desk.vrs
 ```
 
 Append the report to the stream findings:
 
 ```bash
-uv run aria-demo inspect data/s01_desk.vrs -o docs/streams.md
+uv run ariasense inspect data/s01_desk.vrs -o docs/streams.md
 ```
 
 Render the gaze dot and trail on the upright RGB video. Use it to check that the dot lands on what you looked at:
 
 ```bash
-uv run aria-demo overlay data/s01_desk.vrs -o runs/s01_overlay.mp4
+uv run ariasense overlay data/s01_desk.vrs -o runs/s01_overlay.mp4
 ```
 
 Add `--show` for a live window and `--speed 1` to play back in real time.
@@ -39,7 +39,7 @@ Add `--show` for a live window and `--speed 1` to play back in real time.
 Run YOLO26 detection and highlight the object you're looking at, with its dwell time:
 
 ```bash
-uv run aria-demo detect data/s01_desk.vrs -o runs/s01_detect.mp4
+uv run ariasense detect data/s01_desk.vrs -o runs/s01_detect.mp4
 ```
 
 Weights are downloaded to `models/` on first use. Pick another model with `--model yolo26m.pt`. At the end, the command prints the time spent looking at each class.
@@ -47,7 +47,7 @@ Weights are downloaded to `models/` on first use. Pick another model with `--mod
 Compute physiological and eye features once per second, z-scored against a personal baseline:
 
 ```bash
-uv run aria-demo physio data/s01_desk.vrs -o runs/s01_features.csv --baseline 60
+uv run ariasense physio data/s01_desk.vrs -o runs/s01_features.csv --baseline 60
 ```
 
 The output is a CSV of raw values and z-scores, plus a PNG with each feature plotted against the baseline band. The features are:
@@ -61,7 +61,7 @@ The output is a CSV of raw values and z-scores, plus a PNG with each feature plo
 Estimate a state each second: Calm, Focused, Distracted, Stressed, Fatigued, or a Startled event. Each estimate comes with its confidence and the reasons behind it:
 
 ```bash
-uv run aria-demo states data/s02_states.vrs --labels data/s02_states_labels.csv
+uv run ariasense states data/s02_states.vrs --labels data/s02_states_labels.csv
 ```
 
 The rules and thresholds live in [configs/state.yaml](configs/state.yaml). With `--labels`, the command also prints a confusion matrix; see [docs/protocol.md](docs/protocol.md). These are *estimated* physiological and attentional states, not measured emotions.
@@ -71,7 +71,7 @@ The rules and thresholds live in [configs/state.yaml](configs/state.yaml). With 
 Replay a recording through the full pipeline and open the dashboard at http://127.0.0.1:8000:
 
 ```bash
-uv run aria-demo dashboard data/s01_desk.vrs --baseline 60
+uv run ariasense dashboard data/s01_desk.vrs --baseline 60
 ```
 
 The dashboard shows:
@@ -89,13 +89,13 @@ Controls: pause/resume (space bar), playback speed, Re-baseline, and a boxes tog
 Run the dashboard on the live stream from the glasses:
 
 ```bash
-uv run aria-demo live --interface usb
+uv run ariasense live --interface usb
 ```
 
 Check which streams arrive, at what rate, and with what latency:
 
 ```bash
-uv run aria-demo stream-check
+uv run ariasense stream-check
 ```
 
 To test the live code path without the glasses, feed a recording through it with `--replay data/s01_desk.vrs`. Setup for USB, Wi-Fi and the glasses' hotspot is in [docs/live.md](docs/live.md).

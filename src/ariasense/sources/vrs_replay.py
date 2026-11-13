@@ -6,10 +6,10 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
-from aria_demo.calibration.projection import RGB_LABEL
-from aria_demo.sources import convert
-from aria_demo.sources.base import ALL_SIGNALS, Pacer, Signal
-from aria_demo.types import Sample
+from ariasense.calibration.projection import RGB_LABEL
+from ariasense.sources import convert
+from ariasense.sources.base import ALL_SIGNALS, Pacer, Signal
+from ariasense.types import Sample
 
 # SDK sensor-data type name -> our signal.
 _TYPE_TO_SIGNAL = {

@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from aria_demo.pipeline import DemoPipeline, Message
+from ariasense.pipeline import DemoPipeline, Message
 
 STATIC_DIR = Path(__file__).parent / "static"
 HISTORY = 300  # seconds of features/state replayed to a newly connected browser

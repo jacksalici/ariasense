@@ -7,7 +7,7 @@ from collections.abc import Callable, Iterator
 from enum import StrEnum
 from typing import Any, Protocol
 
-from aria_demo.types import Sample
+from ariasense.types import Sample
 
 
 class Signal(StrEnum):

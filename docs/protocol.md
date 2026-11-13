@@ -70,7 +70,7 @@ start_s,end_s,label
 Then run:
 
 ```bash
-uv run aria-demo states data/s02_states.vrs --labels data/s02_states_labels.csv -o runs/s02_states.csv
+uv run ariasense states data/s02_states.vrs --labels data/s02_states_labels.csv -o runs/s02_states.csv
 ```
 
 The output shows a confusion matrix, recall per state, and how many startles were detected. Startled is scored as an event: a segment counts as a hit if a startle is detected anywhere inside it. To tune the rules, edit `configs/state.yaml` and re-run.

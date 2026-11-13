@@ -1,4 +1,4 @@
-"""Command-line entry point: `aria-demo <command>`."""
+"""Command-line entry point: `ariasense <command>`."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def inspect(
     ] = None,
 ) -> None:
     """List the streams, rates and fields in VRS recordings."""
-    from aria_demo.inspect_vrs import inspect_vrs
+    from ariasense.inspect_vrs import inspect_vrs
 
     for path in vrs:
         report = inspect_vrs(path)
@@ -44,9 +44,9 @@ ScaleOpt = Annotated[float, typer.Option(help="Resize factor for the output vide
 
 
 def _open_gaze_source(vrs: Path, speed: float, depth: float):
-    from aria_demo.calibration.projection import GazeProjector
-    from aria_demo.sources.base import Signal
-    from aria_demo.sources.vrs_replay import VrsReplaySource
+    from ariasense.calibration.projection import GazeProjector
+    from ariasense.sources.base import Signal
+    from ariasense.sources.vrs_replay import VrsReplaySource
 
     source = VrsReplaySource(vrs, signals={Signal.RGB, Signal.EYE_GAZE}, speed=speed)
     if Signal.EYE_GAZE not in {signal for signal, _ in source.streams.values()}:
@@ -66,7 +66,7 @@ def overlay(
     scale: ScaleOpt = 0.5,
 ) -> None:
     """M1 checkpoint: draw the gaze dot on the RGB video."""
-    from aria_demo.overlay import OverlayStats, render, write_video
+    from ariasense.overlay import OverlayStats, render, write_video
 
     source, projector = _open_gaze_source(vrs, speed, depth)
     stats = OverlayStats()
@@ -92,9 +92,9 @@ def detect(
     scale: ScaleOpt = 0.5,
 ) -> None:
     """M2 checkpoint: YOLO detections + the object you are looking at, with dwell time."""
-    from aria_demo.overlay import OverlayStats, gaze_frames, write_video
-    from aria_demo.perception.detector import YoloDetector
-    from aria_demo.perception.pipeline import draw, perceive
+    from ariasense.overlay import OverlayStats, gaze_frames, write_video
+    from ariasense.perception.detector import YoloDetector
+    from ariasense.perception.pipeline import draw, perceive
 
     source, projector = _open_gaze_source(vrs, speed, depth)
     detector = YoloDetector(model=model, conf=conf, imgsz=imgsz)
@@ -121,10 +121,10 @@ def detect(
 
 def _features_and_baseline(vrs: Path, baseline_s: float, step: float):
     """Feature vectors for the whole recording + a baseline from its first `baseline_s`."""
-    from aria_demo.sources.base import Signal
-    from aria_demo.sources.vrs_replay import VrsReplaySource
-    from aria_demo.state.baseline import Baseline
-    from aria_demo.state.features import FeatureExtractor, extract
+    from ariasense.sources.base import Signal
+    from ariasense.sources.vrs_replay import VrsReplaySource
+    from ariasense.state.baseline import Baseline
+    from ariasense.state.features import FeatureExtractor, extract
 
     signals = {Signal.PPG, Signal.EYE_GAZE, Signal.IMU, Signal.ALS}
     source = VrsReplaySource(vrs, signals=signals, speed=0)
@@ -154,8 +154,8 @@ def physio(
     step: Annotated[float, typer.Option(help="Seconds between feature vectors.")] = 1.0,
 ) -> None:
     """M3 checkpoint: heart rate, HRV, blinks, fixations, head motion -> CSV + plot."""
-    from aria_demo.state import report
-    from aria_demo.state.features import FEATURES
+    from ariasense.state import report
+    from ariasense.state.features import FEATURES
 
     rows, baseline, baseline_s = _features_and_baseline(vrs, baseline_s, step)
     report.write_csv(rows, baseline, out)
@@ -187,10 +187,10 @@ def states(
     step: Annotated[float, typer.Option(help="Seconds between estimates.")] = 1.0,
 ) -> None:
     """M4: estimated state per second (+ evaluation against labelled segments)."""
-    from aria_demo.state import report
-    from aria_demo.state.config import StateConfig
-    from aria_demo.state.estimator import StateEstimator
-    from aria_demo.state.evaluate import evaluate, load_labels
+    from ariasense.state import report
+    from ariasense.state.config import StateConfig
+    from ariasense.state.estimator import StateEstimator
+    from ariasense.state.evaluate import evaluate, load_labels
 
     rows, baseline, baseline_s = _features_and_baseline(vrs, baseline_s, step)
     estimator = StateEstimator(StateConfig.load(config), baseline)
@@ -240,7 +240,7 @@ def dashboard(
     depth: DepthOpt = 1.0,
 ) -> None:
     """M5: web dashboard replaying a recording (video + gaze + YOLO, signals, estimated state)."""
-    from aria_demo.pipeline import vrs_source_factory
+    from ariasense.pipeline import vrs_source_factory
 
     _serve(
         vrs_source_factory(vrs, speed),
@@ -262,10 +262,10 @@ def _serve(
 ) -> None:
     import uvicorn
 
-    from aria_demo.dashboard.server import create_app
-    from aria_demo.perception.detector import YoloDetector
-    from aria_demo.pipeline import DemoPipeline
-    from aria_demo.state.config import StateConfig
+    from ariasense.dashboard.server import create_app
+    from ariasense.perception.detector import YoloDetector
+    from ariasense.pipeline import DemoPipeline
+    from ariasense.state.config import StateConfig
 
     detector = YoloDetector(model=model, conf=conf, imgsz=imgsz)
     pipeline = DemoPipeline(
@@ -306,7 +306,7 @@ ReplayOpt = Annotated[
 def _live_factory(
     replay: Path | None, interface: str, profile: str, serial: str | None, control: bool, record
 ):
-    from aria_demo.pipeline import live_source_factory, sdk_replay_source_factory
+    from ariasense.pipeline import live_source_factory, sdk_replay_source_factory
 
     if replay is not None:
         return sdk_replay_source_factory(replay), {
@@ -365,8 +365,8 @@ def stream_check(
     """M6: which streams arrive live, at what rate, and with what latency (no YOLO, no UI)."""
     import time
 
-    from aria_demo.pipeline import EXPECTED_STREAMS
-    from aria_demo.types import RgbFrame
+    from ariasense.pipeline import EXPECTED_STREAMS
+    from ariasense.types import RgbFrame
 
     factory, info = _live_factory(replay, interface, profile, serial, control, None)
     source = factory()

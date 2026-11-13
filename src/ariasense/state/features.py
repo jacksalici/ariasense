@@ -7,11 +7,11 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from aria_demo.physio.eye_events import eye_stats
-from aria_demo.physio.motion import motion_stats
-from aria_demo.physio.ppg import estimate_heart
-from aria_demo.sync import History
-from aria_demo.types import AlsSample, EyeGazeSample, ImuSample, PpgSample, Sample
+from ariasense.physio.eye_events import eye_stats
+from ariasense.physio.motion import motion_stats
+from ariasense.physio.ppg import estimate_heart
+from ariasense.sync import History
+from ariasense.types import AlsSample, EyeGazeSample, ImuSample, PpgSample, Sample
 
 # Feature name -> human-readable description (and the column order of reports).
 FEATURES: dict[str, str] = {

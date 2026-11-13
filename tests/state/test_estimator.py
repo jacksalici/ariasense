@@ -1,9 +1,9 @@
 import pytest
 
-from aria_demo.state.baseline import Baseline
-from aria_demo.state.config import StateConfig
-from aria_demo.state.estimator import State, StateEstimator
-from aria_demo.state.features import FeatureVector
+from ariasense.state.baseline import Baseline
+from ariasense.state.config import StateConfig
+from ariasense.state.estimator import State, StateEstimator
+from ariasense.state.features import FeatureVector
 
 SEC = 1_000_000_000
 
@@ -135,7 +135,7 @@ def test_config_loads_yaml(tmp_path):
 
 
 def test_not_worn_reasons():
-    from aria_demo.state.estimator import not_worn_reasons
+    from ariasense.state.estimator import not_worn_reasons
 
     assert not_worn_reasons(fv(0)) == []  # pulse present
     assert not_worn_reasons(fv(0, hr_bpm=None, gaze_valid=0.9)) == []  # gaze present

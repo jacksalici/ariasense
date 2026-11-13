@@ -1,9 +1,9 @@
 import numpy as np
 
-from aria_demo.calibration.projection import GazeProjector
-from aria_demo.overlay import DOT_COLOR, OverlayStats, render, write_video
-from aria_demo.sync import History
-from aria_demo.types import EyeGazeSample, PpgSample, RgbFrame
+from ariasense.calibration.projection import GazeProjector
+from ariasense.overlay import DOT_COLOR, OverlayStats, render, write_video
+from ariasense.sync import History
+from ariasense.types import EyeGazeSample, PpgSample, RgbFrame
 
 W, H = 64, 48
 MS = 1_000_000

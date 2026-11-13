@@ -6,7 +6,7 @@ This page records which signals we can actually use. It has two parts:
 2. **Per-recording reports**, appended by:
 
    ```bash
-   uv run aria-demo inspect data/<session>.vrs -o docs/streams.md
+   uv run ariasense inspect data/<session>.vrs -o docs/streams.md
    ```
 
 ## 1. API-level findings
@@ -42,7 +42,7 @@ This page records which signals we can actually use. It has two parts:
   - **The RGB image is already upright**: 2560×1920, FISHEYE624. Unlike Gen 1, no 90° rotation is needed.
   - **Blink flags are inverted**: `vergence.left/right_blink` are True while the eye is open.
   - YOLO tags the wearer's own forearm as `person`. Those boxes are filtered out when they touch the bottom edge.
-- [x] Which streams arrive **live**? Checked with the glasses over USB on 2026-11-13 using `aria-demo stream-check`:
+- [x] Which streams arrive **live**? Checked with the glasses over USB on 2026-11-13 using `ariasense stream-check`:
 
   | stream | `mp_streaming_demo` (default) | `profile9` |
   |---|---|---|

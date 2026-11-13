@@ -1,7 +1,7 @@
 import pytest
 
-from aria_demo.perception.attention import AttentionTracker, box_distance, iou, pick_attended
-from aria_demo.types import Detection
+from ariasense.perception.attention import AttentionTracker, box_distance, iou, pick_attended
+from ariasense.types import Detection
 
 MS = 1_000_000
 

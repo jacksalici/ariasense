@@ -8,9 +8,9 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from aria_demo.pipeline import DemoPipeline
-from aria_demo.sources.live import Reorderer, StreamSource
-from aria_demo.types import EyeGazeSample, ImuSample, PpgSample, RgbFrame
+from ariasense.pipeline import DemoPipeline
+from ariasense.sources.live import Reorderer, StreamSource
+from ariasense.types import EyeGazeSample, ImuSample, PpgSample, RgbFrame
 from tests.fakes import FakeCalibration
 
 MS = 1_000_000
@@ -187,7 +187,7 @@ class FakeLive(StreamSource):
 
 
 def test_pipeline_closes_live_source_reports_latency_and_missing_streams(monkeypatch):
-    import aria_demo.pipeline as pl
+    import ariasense.pipeline as pl
 
     monkeypatch.setattr(pl, "HEALTH_EVERY_S", 0.0)
     source = FakeLive()

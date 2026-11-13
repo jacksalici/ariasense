@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from aria_demo.types import EyeGazeSample
+from ariasense.types import EyeGazeSample
 
 # On s01_desk the 30 Hz on-device gaze jitters ~0.8° between consecutive samples
 # (median), so lab-style 1–2° thresholds split fixations apart. At 4° the mean

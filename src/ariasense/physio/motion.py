@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.ndimage import uniform_filter1d
 
-from aria_demo.types import ImuSample
+from ariasense.types import ImuSample
 
 
 @dataclass(frozen=True)

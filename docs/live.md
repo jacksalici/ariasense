@@ -24,7 +24,7 @@ uv run aria_gen2 streaming stop
 ## 1. Check the streams (no YOLO, no UI)
 
 ```bash
-uv run aria-demo stream-check --interface usb --seconds 15
+uv run ariasense stream-check --interface usb --seconds 15
 ```
 
 This prints, for each stream (rgb, eye_gaze, ppg, imu), the sample count and rate. It also prints how many RGB frames were skipped and the capture-to-host latency, measured with TicSync.
@@ -36,7 +36,7 @@ A stream marked `<- missing` is not in the streaming profile. Try another profil
 Over USB:
 
 ```bash
-uv run aria-demo live --interface usb --baseline 60
+uv run ariasense live --interface usb --baseline 60
 ```
 
 Then open http://127.0.0.1:8000.
@@ -50,7 +50,7 @@ Then open http://127.0.0.1:8000.
 **Tested and working (2026-11-13):** a home Wi-Fi network. Start the dashboard with the glasses plugged in, then unplug and walk around: latency is ~200 ms, against ~110 ms over USB.
 
 ```bash
-uv run aria-demo live --interface wifi_sta
+uv run ariasense live --interface wifi_sta
 ```
 
 
@@ -62,7 +62,7 @@ ping -c 3 <glasses Wi-Fi IP>
 
 The glasses' Wi-Fi IP is shown by `uv run aria_gen2 device status`. If ping fails and `arp -an` lists the glasses as `(incomplete)`, the network isolates clients. Use the glasses' hotspot or your own router instead.
 
-If the two devices can reach each other, the glasses stream over Wi-Fi even with the cable still in. If they can't (e.g. on an isolating hotspot), the glasses fall back to USB while plugged in, and nothing arrives once you unplug. `aria-demo live` sets `keep_streaming_on_disconnection` for Wi-Fi interfaces, so the glasses keep streaming once unplugged. They also **keep streaming after you stop the dashboard**, so mind the battery. To stop them without the cable (works when the devices can reach each other, as on the home network), use the glasses' Wi-Fi IP from `aria_gen2 device status`:
+If the two devices can reach each other, the glasses stream over Wi-Fi even with the cable still in. If they can't (e.g. on an isolating hotspot), the glasses fall back to USB while plugged in, and nothing arrives once you unplug. `ariasense live` sets `keep_streaming_on_disconnection` for Wi-Fi interfaces, so the glasses keep streaming once unplugged. They also **keep streaming after you stop the dashboard**, so mind the battery. To stop them without the cable (works when the devices can reach each other, as on the home network), use the glasses' Wi-Fi IP from `aria_gen2 device status`:
 
 ```bash
 uv run aria_gen2 --device-ip <glasses Wi-Fi IP> streaming stop
@@ -80,13 +80,13 @@ uv run aria_gen2 device wifi connect --ssid <name> --password <password>
 ```
 
 ```bash
-uv run aria-demo live --interface wifi_sta
+uv run ariasense live --interface wifi_sta
 ```
 
 **The glasses' hotspot.** This needs no router, which makes it the safest choice at a venue. Turn on the hotspot (check `aria_gen2 device --help` for the exact command), connect the laptop to it, then run:
 
 ```bash
-uv run aria-demo live --interface wifi_sap
+uv run ariasense live --interface wifi_sap
 ```
 
 Wi-Fi sends data in batches, so expect more latency than over USB. The dashboard shows it in the top bar: green below 400 ms, amber below 1 s, red above.
@@ -94,7 +94,7 @@ Wi-Fi sends data in batches, so expect more latency than over USB. The dashboard
 ## Test the live code path without the glasses
 
 ```bash
-uv run aria-demo live --replay data/s01_desk.vrs --baseline 15
+uv run ariasense live --replay data/s01_desk.vrs --baseline 15
 ```
 
 This feeds a recording through the same SDK streaming callbacks used live (`create_replay_source`). Callback wiring, re-ordering, frame dropping and stream health are all exercised; only the network part is skipped.

@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from aria_demo.types import AlsSample, EyeGazeSample, ImuSample, PpgSample, RgbFrame
+from ariasense.types import AlsSample, EyeGazeSample, ImuSample, PpgSample, RgbFrame
 
 
 def _finite_or_none(x: float) -> float | None:

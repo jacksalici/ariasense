@@ -15,7 +15,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from aria_demo.state.estimator import State, StateEstimate
+from ariasense.state.estimator import State, StateEstimate
 
 
 @dataclass(frozen=True)

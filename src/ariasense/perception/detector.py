@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from aria_demo.types import Detection
+from ariasense.types import Detection
 
 DEFAULT_MODEL = "yolo26s.pt"
 MODELS_DIR = Path("models")

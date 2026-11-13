@@ -6,11 +6,11 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from aria_demo.dashboard.server import Hub, create_app
-from aria_demo.perception.attention import AttentionState
-from aria_demo.pipeline import DemoPipeline, dwell_pseudo_z, encode_jpeg
-from aria_demo.sources.base import Pacer
-from aria_demo.types import Detection, EyeGazeSample, PpgSample, RgbFrame
+from ariasense.dashboard.server import Hub, create_app
+from ariasense.perception.attention import AttentionState
+from ariasense.pipeline import DemoPipeline, dwell_pseudo_z, encode_jpeg
+from ariasense.sources.base import Pacer
+from ariasense.types import Detection, EyeGazeSample, PpgSample, RgbFrame
 from tests.fakes import FakeCalibration
 
 SEC = 1_000_000_000
@@ -133,7 +133,7 @@ def test_server_serves_ui_streams_messages_and_controls():
     p = make_pipeline(loop=True)
     app = create_app(p, info={"source": "fake.vrs"})
     with TestClient(app) as client:
-        assert "Aria Gen 2" in client.get("/").text
+        assert "AriaSense" in client.get("/").text
         assert client.get("/static/app.js").status_code == 200
         assert client.get("/api/info").json()["source"] == "fake.vrs"
 

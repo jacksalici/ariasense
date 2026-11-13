@@ -1,7 +1,7 @@
 import pytest
 
-from aria_demo.state.estimator import State, StateEstimate
-from aria_demo.state.evaluate import Segment, evaluate, load_labels, parse_state
+from ariasense.state.estimator import State, StateEstimate
+from ariasense.state.evaluate import Segment, evaluate, load_labels, parse_state
 
 SEC = 1_000_000_000
 

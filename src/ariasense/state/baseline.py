@@ -6,7 +6,7 @@ from collections.abc import Iterable
 
 import numpy as np
 
-from aria_demo.state.features import FeatureVector
+from ariasense.state.features import FeatureVector
 
 # Minimum std per feature, so a very steady baseline does not turn noise into huge z-scores.
 MIN_STD: dict[str, float] = {

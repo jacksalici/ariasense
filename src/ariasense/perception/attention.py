@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from aria_demo.calibration.projection import Pixel
-from aria_demo.types import Detection
+from ariasense.calibration.projection import Pixel
+from ariasense.types import Detection
 
 
 def box_distance(px: Pixel, box: tuple[float, float, float, float]) -> float:

@@ -20,9 +20,9 @@ from enum import StrEnum
 
 import numpy as np
 
-from aria_demo.state.baseline import Baseline
-from aria_demo.state.config import StateConfig
-from aria_demo.state.features import FeatureVector
+from ariasense.state.baseline import Baseline
+from ariasense.state.config import StateConfig
+from ariasense.state.features import FeatureVector
 
 
 class State(StrEnum):

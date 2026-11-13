@@ -1,7 +1,7 @@
 [project]
-name = "aria-demo"
+name = "ariasense"
 version = "0.1.0"
-description = "Aria Gen 2 demo: gaze-attended YOLO detections and estimated wearer state"
+description = "AriaSense: gaze-attended YOLO detections and estimated wearer state from Aria Gen 2"
 readme = "README.md"
 authors = [
     { name = "Giacomo Salici", email = "giacomo.salici@gmail.com" }
@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.scripts]
-aria-demo = "aria_demo.cli:app"
+ariasense = "ariasense.cli:app"
 
 [build-system]
 requires = ["uv_build>=0.12.1,<0.13.0"]

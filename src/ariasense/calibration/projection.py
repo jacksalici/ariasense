@@ -12,7 +12,7 @@ from typing import Any
 
 import numpy as np
 
-from aria_demo.types import EyeGazeSample
+from ariasense.types import EyeGazeSample
 
 DEFAULT_DEPTH_M = 1.0
 RGB_LABEL = "camera-rgb"

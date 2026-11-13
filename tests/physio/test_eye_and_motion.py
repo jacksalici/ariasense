@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
 
-from aria_demo.physio.eye_events import eye_stats, eyes_closed, idt_fixations, runs
-from aria_demo.physio.motion import motion_stats
-from aria_demo.types import EyeGazeSample, ImuSample
+from ariasense.physio.eye_events import eye_stats, eyes_closed, idt_fixations, runs
+from ariasense.physio.motion import motion_stats
+from ariasense.types import EyeGazeSample, ImuSample
 
 HZ = 30
 

@@ -24,15 +24,15 @@ from typing import Any
 import cv2
 import numpy as np
 
-from aria_demo.calibration.projection import GazeProjector
-from aria_demo.overlay import gaze_frames
-from aria_demo.perception.attention import AttentionState, AttentionTracker
-from aria_demo.perception.pipeline import Detector, PerceptionFrame, perceive
-from aria_demo.state.baseline import Baseline
-from aria_demo.state.config import StateConfig
-from aria_demo.state.estimator import State, StateEstimate, StateEstimator, not_worn_reasons
-from aria_demo.state.features import FeatureExtractor, FeatureVector
-from aria_demo.types import Sample
+from ariasense.calibration.projection import GazeProjector
+from ariasense.overlay import gaze_frames
+from ariasense.perception.attention import AttentionState, AttentionTracker
+from ariasense.perception.pipeline import Detector, PerceptionFrame, perceive
+from ariasense.state.baseline import Baseline
+from ariasense.state.config import StateConfig
+from ariasense.state.estimator import State, StateEstimate, StateEstimator, not_worn_reasons
+from ariasense.state.features import FeatureExtractor, FeatureVector
+from ariasense.types import Sample
 
 Message = dict[str, Any]
 Emit = Callable[[Message], None]
@@ -330,19 +330,19 @@ class DemoPipeline:
 
 
 def vrs_source_factory(path: Path, speed: float) -> Callable[[], Any]:
-    from aria_demo.sources.base import ALL_SIGNALS
-    from aria_demo.sources.vrs_replay import VrsReplaySource
+    from ariasense.sources.base import ALL_SIGNALS
+    from ariasense.sources.vrs_replay import VrsReplaySource
 
     return lambda: VrsReplaySource(path, signals=ALL_SIGNALS, speed=speed)
 
 
 def live_source_factory(**kwargs: Any) -> Callable[[], Any]:
-    from aria_demo.sources.live import LiveSource
+    from ariasense.sources.live import LiveSource
 
     return lambda: LiveSource(**kwargs)
 
 
 def sdk_replay_source_factory(path: Path, speed: float = 1.0) -> Callable[[], Any]:
-    from aria_demo.sources.live import SdkReplaySource
+    from ariasense.sources.live import SdkReplaySource
 
     return lambda: SdkReplaySource(path, speed=speed)

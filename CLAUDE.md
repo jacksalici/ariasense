@@ -16,12 +16,12 @@
 ## Environment
 
 - Use `uv` only (no pip/conda). Python is pinned to 3.12 (`projectaria-tools` needs it).
-- Run: `uv run aria-demo <command>`.
+- Run: `uv run ariasense <command>`.
 - Tests: `uv run pytest`.
 - Lint/format: `uv run ruff check . && uv run ruff format .`.
 
 ## Conventions
 
-- Code lives in `src/aria_demo/`, organised by pipeline stage (`sources/`, `calibration/`, `perception/`, `physio/`, `state/`, `dashboard/`). Add a package when its milestone starts, not before.
+- Code lives in `src/ariasense/`, organised by pipeline stage (`sources/`, `calibration/`, `perception/`, `physio/`, `state/`, `dashboard/`). Add a package when its milestone starts, not before.
 - Import `projectaria_tools` lazily inside functions that need it, so pure logic stays testable without the SDK or device.
 - Tests use small synthetic fixtures, never VRS files.

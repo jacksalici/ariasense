@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from aria_demo.inspect_vrs import public_fields, render_markdown, summarize
+from ariasense.inspect_vrs import public_fields, render_markdown, summarize
 
 
 class FakeVergence:

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from aria_demo.physio.ppg import FS_HZ, estimate_heart, valid_ibi_mask
+from ariasense.physio.ppg import FS_HZ, estimate_heart, valid_ibi_mask
 
 
 def synthetic_ppg(hr_bpm=72.0, seconds=30.0, jitter_s=0.0, spikes=True, invert=False, seed=0):

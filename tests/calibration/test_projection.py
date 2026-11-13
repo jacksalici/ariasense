@@ -3,14 +3,14 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from aria_demo.calibration.projection import (
+from ariasense.calibration.projection import (
     GazeProjector,
     gaze_point_cpf,
     needs_upright_rotation,
     rotate_pixel_cw90,
     upright,
 )
-from aria_demo.types import EyeGazeSample
+from ariasense.types import EyeGazeSample
 
 W, H, F = 640, 480, 300.0
 
