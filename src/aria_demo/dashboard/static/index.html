@@ -4,22 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Aria Gen 2 Demo</title>
+  <link rel="stylesheet" href="/static/vendor/gridstack.min.css">
+  <link rel="stylesheet" href="/static/vendor/uPlot.min.css">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="logo" aria-hidden="true"></span>
-      <div>
-        <h1>Aria Gen 2 <span class="muted">· wearer state</span></h1>
-        <p class="sub" id="source">connecting…</p>
-      </div>
+  <header class="topbar" id="topbar">
+    <div class="title">
+      <h1>Aria Gen 2 <span class="muted">/ wearer state</span></h1>
+      <span class="sub" id="source">connecting…</span>
     </div>
     <div class="controls">
       <span class="pill" id="conn">offline</span>
       <span class="pill" id="clock">t = 0.0 s</span>
       <span class="pill" id="latency" hidden title="Capture to fully processed, via TicSync">— ms</span>
-      <button id="pause" title="Pause / resume (space)">Pause</button>
       <label class="select" id="speedBox">Speed
         <select id="speed">
           <option value="0.5">0.5×</option>
@@ -28,61 +26,91 @@
           <option value="4">4×</option>
         </select>
       </label>
+      <label class="toggle"><input type="checkbox" id="showBoxes" checked> Boxes</label>
+      <button id="resetLayout" title="Restore the default panel layout">Reset layout</button>
       <button id="rebaseline" title="Start a new personal baseline">Re-baseline</button>
-      <label class="toggle"><input type="checkbox" id="showBoxes" checked> boxes</label>
+      <button id="pause" class="primary" title="Pause / resume (space)">Pause</button>
     </div>
   </header>
 
   <div class="banner" id="banner" hidden></div>
 
-  <main class="layout">
-    <section class="video-col">
-      <div class="panel stage">
-        <canvas id="video"></canvas>
-        <div class="stage-empty" id="stageEmpty">Waiting for the first frame…</div>
-        <div class="looking" id="looking">
-          <span class="looking-label">looking at</span>
-          <span class="looking-obj" id="lookingObj">—</span>
-          <span class="looking-dwell" id="lookingDwell"></span>
+  <section class="kpis" id="stateCard">
+    <div class="kpi">
+      <span class="kpi-label">Estimated state</span>
+      <span class="kpi-value" id="stateName">Calibrating</span>
+      <span class="kpi-sub muted" id="candidate">not a measured emotion</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Confidence</span>
+      <span class="kpi-value" id="confText">—</span>
+      <div class="meter"><div class="meter-fill" id="confFill"></div></div>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Looking at</span>
+      <span class="kpi-value" id="lookingObj">—</span>
+      <span class="kpi-sub muted" id="stageEmpty">Waiting for the first frame…</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Dwell</span>
+      <span class="kpi-value" id="lookingDwell">—</span>
+      <span class="kpi-sub muted" id="switches"></span>
+    </div>
+  </section>
+
+  <main class="grid-stack" id="grid">
+    <div class="grid-stack-item" gs-id="video" gs-x="0" gs-y="0" gs-w="6" gs-h="16" gs-min-w="3" gs-min-h="6">
+      <div class="grid-stack-item-content panel">
+        <div class="panel-head"><h2>Camera</h2><span class="muted">RGB · gaze and detections</span></div>
+        <div class="fill dark" data-draw="video"><canvas id="video"></canvas></div>
+      </div>
+    </div>
+
+    <div class="grid-stack-item" gs-id="why" gs-x="6" gs-y="0" gs-w="3" gs-h="6" gs-min-w="2" gs-min-h="3">
+      <div class="grid-stack-item-content panel">
+        <div class="panel-head"><h2>Why this state</h2></div>
+        <div class="scroll">
+          <ul class="reasons" id="reasons"></ul>
+          <div class="calib" id="calib">
+            <div class="muted">Building your personal baseline — sit still and relax.</div>
+            <div class="meter"><div class="meter-fill calib-fill" id="calibFill"></div></div>
+          </div>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Attention by object</h2><span class="muted" id="switches"></span></div>
-        <div id="attnBars" class="bars"><p class="muted small">No attended objects yet.</p></div>
-      </div>
-    </section>
+    </div>
 
-    <section class="side-col">
-      <div class="panel state-card" id="stateCard">
-        <div class="panel-head"><h2>Estimated state</h2><span class="muted small">not a measured emotion</span></div>
-        <div class="state-name" id="stateName">Calibrating</div>
-        <div class="meter"><div class="meter-fill" id="confFill"></div></div>
-        <div class="state-meta"><span id="confText">—</span><span id="candidate" class="muted"></span></div>
-        <ul class="reasons" id="reasons"></ul>
-        <div class="calib" id="calib">
-          <div class="muted small">Building your personal baseline — sit still and relax.</div>
-          <div class="meter"><div class="meter-fill calib-fill" id="calibFill"></div></div>
-        </div>
+    <div class="grid-stack-item" gs-id="attn" gs-x="6" gs-y="6" gs-w="3" gs-h="10" gs-min-w="2" gs-min-h="3">
+      <div class="grid-stack-item-content panel">
+        <div class="panel-head"><h2>Attention by object</h2></div>
+        <div class="scroll"><div id="attnBars" class="bars"><p class="muted">No attended objects yet.</p></div></div>
       </div>
+    </div>
 
-      <div class="panel">
-        <div class="panel-head"><h2>Arousal × attention</h2><span class="muted small">z vs baseline</span></div>
-        <canvas id="plane" class="plane"></canvas>
-      </div>
-
-      <div class="panel">
-        <div class="panel-head"><h2>Signals</h2><span class="muted small">band = baseline ± 1 sd</span></div>
+    <div class="grid-stack-item" gs-id="signals" gs-x="9" gs-y="0" gs-w="3" gs-h="10" gs-min-w="2" gs-min-h="6">
+      <div class="grid-stack-item-content panel">
+        <div class="panel-head"><h2>Signals</h2><span class="muted">band = baseline ± 1 sd</span></div>
         <div id="signals" class="signals"></div>
       </div>
-    </section>
+    </div>
 
-    <section class="panel timeline-panel">
-      <div class="panel-head"><h2>State timeline</h2><div class="legend" id="legend"></div></div>
-      <canvas id="timeline" class="timeline"></canvas>
-    </section>
+    <div class="grid-stack-item" gs-id="plane" gs-x="9" gs-y="10" gs-w="3" gs-h="6" gs-min-w="2" gs-min-h="4">
+      <div class="grid-stack-item-content panel">
+        <div class="panel-head"><h2>Arousal × attention</h2><span class="muted">z vs baseline</span></div>
+        <div class="fill" data-draw="plane"><canvas id="plane"></canvas></div>
+      </div>
+    </div>
+
+    <div class="grid-stack-item" gs-id="timeline" gs-x="0" gs-y="16" gs-w="12" gs-h="4" gs-min-w="4" gs-min-h="3">
+      <div class="grid-stack-item-content panel">
+        <div class="panel-head"><h2>State timeline</h2><div class="legend" id="legend"></div></div>
+        <div class="fill" data-draw="timeline" id="timeline"></div>
+      </div>
+    </div>
   </main>
 
   <div class="toast" id="toast" hidden></div>
+  <script src="/static/vendor/gridstack-all.js"></script>
+  <script src="/static/vendor/uPlot.iife.min.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

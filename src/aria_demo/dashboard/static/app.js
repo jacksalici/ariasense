@@ -2,24 +2,24 @@
 
 // ---- configuration ---------------------------------------------------------
 const STATE_COLORS = {
-  Calibrating: "#64748b",
-  "No signal": "#475569",
-  Neutral: "#94a3b8",
-  Calm: "#34d399",
-  Focused: "#60a5fa",
-  Distracted: "#fbbf24",
-  Stressed: "#f87171",
-  Fatigued: "#a78bfa",
-  Startled: "#f472b6",
+  Calibrating: "#a1a1aa",
+  "No signal": "#a1a1aa",
+  Neutral: "#71717a",
+  Calm: "#059669",
+  Focused: "#2563eb",
+  Distracted: "#d97706",
+  Stressed: "#dc2626",
+  Fatigued: "#7c3aed",
+  Startled: "#db2777",
 };
 
 const SIGNALS = [
-  { key: "hr_bpm", name: "Heart rate", unit: "bpm", digits: 0, color: "#f87171" },
-  { key: "rmssd_ms", name: "HRV (RMSSD)", unit: "ms", digits: 0, color: "#fb923c" },
-  { key: "blink_rate_pm", name: "Blinks", unit: "/min", digits: 0, color: "#a78bfa" },
-  { key: "fix_dur_ms", name: "Fixation", unit: "ms", digits: 0, color: "#60a5fa" },
-  { key: "gaze_disp_deg", name: "Gaze spread", unit: "°", digits: 1, color: "#38bdf8" },
-  { key: "head_gyro_rms", name: "Head motion", unit: "rad/s", digits: 2, color: "#34d399" },
+  { key: "hr_bpm", name: "Heart rate", unit: "bpm", digits: 0, color: "#dc2626" },
+  { key: "rmssd_ms", name: "HRV (RMSSD)", unit: "ms", digits: 0, color: "#ea580c" },
+  { key: "blink_rate_pm", name: "Blinks", unit: "/min", digits: 0, color: "#7c3aed" },
+  { key: "fix_dur_ms", name: "Fixation", unit: "ms", digits: 0, color: "#2563eb" },
+  { key: "gaze_disp_deg", name: "Gaze spread", unit: "°", digits: 1, color: "#0284c7" },
+  { key: "head_gyro_rms", name: "Head motion", unit: "rad/s", digits: 2, color: "#059669" },
 ];
 
 // Thresholds mirrored from configs/state.yaml, for the guide lines on the plane.
@@ -48,9 +48,22 @@ const $ = (id) => document.getElementById(id);
 // ---- canvas helpers ----------------------------------------------------------
 function fit(canvas, aspect) {
   const dpr = window.devicePixelRatio || 1;
-  const w = canvas.clientWidth;
-  const h = aspect ? w / aspect : canvas.clientHeight;
-  if (aspect) canvas.style.height = `${h}px`;
+  let w;
+  let h;
+  if (aspect) {
+    // Contain the image inside its box, keeping the aspect ratio.
+    const box = canvas.parentElement;
+    w = box.clientWidth;
+    h = box.clientHeight;
+    if (w / aspect > h) w = h * aspect;
+    w = Math.max(1, Math.floor(w));
+    h = Math.max(1, Math.floor(w / aspect));
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+  } else {
+    w = canvas.clientWidth;
+    h = canvas.clientHeight;
+  }
   if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
@@ -91,13 +104,13 @@ function onFrame(m) {
 
   const a = m.attended;
   $("lookingObj").textContent = a ? a.cls : "—";
-  $("lookingDwell").textContent = a ? `${a.dwell.toFixed(1)} s` : m.blink ? "blink" : "";
+  $("lookingDwell").textContent = a ? `${a.dwell.toFixed(1)} s` : m.blink ? "blink" : "—";
 }
 
 function drawVideo() {
   const m = S.frame;
   if (!m || !S.imageReady) return;
-  $("stageEmpty").hidden = true;
+  $("stageEmpty").textContent = "";
   const { ctx, w, h } = fit($("video"), m.aspect);
   ctx.drawImage(S.image, 0, 0, w, h);
 
@@ -105,25 +118,25 @@ function drawVideo() {
     m.detections.forEach((d, i) => {
       const attended = m.attended && m.attended.index === i;
       const [x1, y1, x2, y2] = [d.box[0] * w, d.box[1] * h, d.box[2] * w, d.box[3] * h];
-      ctx.lineWidth = attended ? 3.5 : 1.2;
+      ctx.lineWidth = attended ? 2.5 : 1;
       ctx.strokeStyle = attended ? css("--attended") : css("--box");
       roundRect(ctx, x1, y1, x2 - x1, y2 - y1, 6);
       ctx.stroke();
       const label = attended ? `${d.cls}  ${m.attended.dwell.toFixed(1)}s` : `${d.cls} ${Math.round(d.conf * 100)}%`;
-      ctx.font = `${attended ? 600 : 500} ${attended ? 14 : 11}px Inter, system-ui, sans-serif`;
+      ctx.font = `${attended ? 600 : 500} ${attended ? 12 : 10}px Inter, system-ui, sans-serif`;
       const tw = ctx.measureText(label).width + 10;
-      const th = attended ? 22 : 17;
+      const th = attended ? 18 : 15;
       ctx.fillStyle = attended ? css("--attended") : "rgba(20,26,40,0.78)";
       roundRect(ctx, x1, Math.max(0, y1 - th), tw, th, 5);
       ctx.fill();
       ctx.fillStyle = attended ? "#04130a" : "#dbe3f3";
-      ctx.fillText(label, x1 + 5, Math.max(0, y1 - th) + th - 6);
+      ctx.fillText(label, x1 + 5, Math.max(0, y1 - th) + th - 5);
     });
   }
 
   if (m.trail.length > 1) {
     ctx.strokeStyle = css("--trail");
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.lineJoin = "round";
     ctx.globalAlpha = 0.85;
     ctx.beginPath();
@@ -133,12 +146,12 @@ function drawVideo() {
   }
   if (m.gaze) {
     const [gx, gy] = [m.gaze[0] * w, m.gaze[1] * h];
-    const r = Math.max(7, w / 110);
+    const r = Math.max(5, w / 150);
     ctx.strokeStyle = css("--gaze");
     ctx.fillStyle = css("--gaze");
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(gx, gy, r * 2.8, 0, Math.PI * 2);
+    ctx.arc(gx, gy, r * 2.4, 0, Math.PI * 2);
     ctx.stroke();
     ctx.beginPath();
     ctx.arc(gx, gy, r, 0, Math.PI * 2);
@@ -155,8 +168,10 @@ function onState(m) {
   $("stateName").textContent = m.state;
   $("stateName").style.color = color; // set directly: a var()-driven transition lagged behind in Chrome
   $("confFill").style.width = `${Math.round((m.confidence || 0) * 100)}%`;
-  $("confText").textContent = m.state === "Calibrating" ? "—" : `confidence ${Math.round(m.confidence * 100)}%`;
-  $("candidate").textContent = m.candidate && m.candidate !== m.state && m.state !== "Startled" ? `→ ${m.candidate}?` : "";
+  $("confFill").style.background = color;
+  $("confText").textContent = m.state === "Calibrating" ? "—" : `${Math.round(m.confidence * 100)}%`;
+  $("candidate").textContent =
+    m.candidate && m.candidate !== m.state && m.state !== "Startled" ? `→ ${m.candidate}?` : "not a measured emotion";
   $("reasons").innerHTML = (m.reasons || []).map((r) => `<li>${escapeHtml(r)}</li>`).join("");
 
   const calibrating = m.baseline_progress < 1;
@@ -199,7 +214,7 @@ function renderBars(totals, switches) {
 // ---- arousal × attention plane -------------------------------------------------
 function drawPlane() {
   const { ctx, w, h } = fit($("plane"));
-  const pad = 26;
+  const pad = 18;
   const R = PLANE.range;
   const X = (v) => pad + ((Math.max(-R, Math.min(R, v)) + R) / (2 * R)) * (w - 2 * pad);
   const Y = (v) => h - pad - ((Math.max(-R, Math.min(R, v)) + R) / (2 * R)) * (h - 2 * pad);
@@ -228,10 +243,10 @@ function drawPlane() {
   ctx.setLineDash([]);
 
   ctx.fillStyle = css("--muted");
-  ctx.font = "11px Inter, system-ui, sans-serif";
-  ctx.fillText("attention →", w - pad - 66, h - 8);
+  ctx.font = "10px Inter, system-ui, sans-serif";
+  ctx.fillText("attention →", w - pad - 56, h - 5);
   ctx.save();
-  ctx.translate(12, pad + 60);
+  ctx.translate(10, pad + 52);
   ctx.rotate(-Math.PI / 2);
   ctx.fillText("arousal →", 0, 0);
   ctx.restore();
@@ -241,33 +256,82 @@ function drawPlane() {
   };
   tag("Focused", X(PLANE.focused) + 6, Y(-R) - 6);
   tag("Distracted", X(-R) + 6, Y(-R) - 6);
-  tag("Stressed", X(PLANE.distracted) + 6, Y(R) + 14);
+  tag("Stressed", X(PLANE.distracted) + 6, Y(R) + 12);
   tag("Calm", X(PLANE.distracted) + 6, Y(-R) - 6);
 
   if (!S.plane.length) return;
-  ctx.strokeStyle = "rgba(230,235,245,0.35)";
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "rgba(17,17,20,0.3)";
+  ctx.lineWidth = 1;
   ctx.beginPath();
   S.plane.forEach((p, i) => (i ? ctx.lineTo(X(p.attention), Y(p.arousal)) : ctx.moveTo(X(p.attention), Y(p.arousal))));
   ctx.stroke();
   const last = S.plane[S.plane.length - 1];
   const cur = S.states.length ? S.states[S.states.length - 1].state : "Neutral";
   ctx.fillStyle = STATE_COLORS[cur] || "#fff";
-  ctx.strokeStyle = "#0b0f17";
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.arc(X(last.attention), Y(last.arousal), 8, 0, Math.PI * 2);
+  ctx.arc(X(last.attention), Y(last.arousal), 5, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 }
 
-// ---- signals ---------------------------------------------------------------------
+// ---- signals (uPlot sparklines) ---------------------------------------------------
+const SPARKS = {}; // key -> { plot, win }
+const MUTED = "#71717a";
+
+function drawBand(u, key) {
+  const mean = S.baseline?.mean?.[key];
+  const sd = S.baseline?.std?.[key];
+  if (mean === undefined || mean === null || sd === undefined || sd === null) return;
+  const { ctx } = u;
+  const { left, width } = u.bbox;
+  const dpr = window.devicePixelRatio || 1;
+  const y1 = u.valToPos(mean + sd, "y", true);
+  const y2 = u.valToPos(mean - sd, "y", true);
+  const ym = u.valToPos(mean, "y", true);
+  ctx.save();
+  ctx.fillStyle = "rgba(113,113,122,0.12)";
+  ctx.fillRect(left, y1, width, y2 - y1);
+  ctx.strokeStyle = "rgba(113,113,122,0.4)";
+  ctx.lineWidth = dpr;
+  ctx.setLineDash([3 * dpr, 3 * dpr]);
+  ctx.beginPath();
+  ctx.moveTo(left, ym);
+  ctx.lineTo(left + width, ym);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function makeSpark(s) {
+  const el = $(`c_${s.key}`);
+  const win = { t0: 0, t1: 1, lo: 0, hi: 1 };
+  const plot = new uPlot(
+    {
+      width: Math.max(40, el.clientWidth),
+      height: Math.max(16, el.clientHeight),
+      padding: [2, 0, 2, 0],
+      legend: { show: false },
+      cursor: { show: false },
+      select: { show: false },
+      scales: { x: { time: false, range: () => [win.t0, win.t1] }, y: { range: () => [win.lo, win.hi] } },
+      axes: [{ show: false }, { show: false }],
+      series: [{}, { stroke: s.color, width: 1.5, points: { show: false } }],
+      hooks: { drawClear: [(u) => drawBand(u, s.key)] },
+    },
+    [[], []],
+    el,
+  );
+  SPARKS[s.key] = { plot, win, el };
+}
+
 function buildSignals() {
   $("signals").innerHTML = SIGNALS.map(
     (s) => `<div class="sig"><div><div class="sig-name">${s.name}</div>
       <div class="sig-val" id="v_${s.key}">—<small>${s.unit}</small></div></div>
-      <canvas id="c_${s.key}"></canvas></div>`,
+      <div class="spark" id="c_${s.key}"></div></div>`,
   ).join("");
+  SIGNALS.forEach(makeSpark);
 }
 
 function onFeatures(m) {
@@ -284,42 +348,79 @@ function onFeatures(m) {
 
 function drawSignals() {
   for (const s of SIGNALS) {
-    const { ctx, w, h } = fit($(`c_${s.key}`));
-    ctx.clearRect(0, 0, w, h);
+    const { plot, win } = SPARKS[s.key];
     const pts = S.series[s.key].filter((p) => p.v !== null && p.v !== undefined);
     const mean = S.baseline?.mean?.[s.key];
     const sd = S.baseline?.std?.[s.key];
     const vals = pts.map((p) => p.v);
     if (mean !== undefined && mean !== null) vals.push(mean - 1.5 * sd, mean + 1.5 * sd);
-    if (vals.length < 2) continue;
+    if (pts.length < 2) {
+      plot.setData([[], []]);
+      continue;
+    }
     let lo = Math.min(...vals);
     let hi = Math.max(...vals);
     if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
-    const tEnd = pts[pts.length - 1]?.t ?? 0;
-    const span = Math.max(30, Math.min(SERIES_SECONDS, tEnd - (pts[0]?.t ?? tEnd)));
-    const X = (t) => w - ((tEnd - t) / span) * w;
-    const Y = (v) => h - 3 - ((v - lo) / (hi - lo)) * (h - 6);
-
-    if (mean !== undefined && mean !== null) {
-      ctx.fillStyle = "rgba(148,163,184,0.16)";
-      ctx.fillRect(0, Y(mean + sd), w, Y(mean - sd) - Y(mean + sd));
-      ctx.strokeStyle = "rgba(148,163,184,0.45)";
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.moveTo(0, Y(mean));
-      ctx.lineTo(w, Y(mean));
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-    ctx.strokeStyle = s.color;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    pts.forEach((p, i) => (i ? ctx.lineTo(X(p.t), Y(p.v)) : ctx.moveTo(X(p.t), Y(p.v))));
-    ctx.stroke();
+    const tEnd = pts[pts.length - 1].t;
+    const span = Math.max(30, Math.min(SERIES_SECONDS, tEnd - pts[0].t));
+    Object.assign(win, { t0: tEnd - span, t1: tEnd, lo, hi });
+    plot.setData([pts.map((p) => p.t), pts.map((p) => p.v)]);
   }
 }
 
-// ---- timeline ---------------------------------------------------------------------
+// ---- timeline (uPlot axis, state bars drawn under it) -----------------------------
+const TL = { plot: null, win: { t0: 0, t1: 1 } };
+
+function drawStates(u) {
+  if (!S.states.length) return;
+  const { ctx } = u;
+  const { left, top, width, height } = u.bbox;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(left, top, width, height);
+  ctx.clip();
+  S.states.forEach((st, i) => {
+    const next = S.states[i + 1]?.t ?? st.t + 1;
+    const x = Math.floor(u.valToPos(st.t, "x", true));
+    const x2 = Math.ceil(u.valToPos(next, "x", true));
+    ctx.fillStyle = STATE_COLORS[st.state] || "#666";
+    ctx.fillRect(x, top, Math.max(1, x2 - x), height); // integer edges: no seams
+  });
+  ctx.restore();
+}
+
+function buildTimeline() {
+  const el = $("timeline");
+  TL.plot = new uPlot(
+    {
+      width: Math.max(100, el.clientWidth),
+      height: Math.max(30, el.clientHeight),
+      padding: [0, 0, 0, 0],
+      legend: { show: false },
+      cursor: { show: false },
+      select: { show: false },
+      scales: { x: { time: false, range: () => [TL.win.t0, TL.win.t1] }, y: { range: () => [0, 1] } },
+      axes: [
+        {
+          stroke: MUTED,
+          font: "10px Inter, system-ui, sans-serif",
+          size: 18,
+          space: 50,
+          incrs: [10, 30, 60],
+          ticks: { show: false },
+          grid: { show: false },
+          values: (u, vals) => vals.map((v) => (v < 0 ? "" : `${Math.round(v)}s`)),
+        },
+        { show: false },
+      ],
+      series: [{}, { show: false }],
+      hooks: { drawClear: [drawStates] },
+    },
+    [[], []],
+    el,
+  );
+}
+
 function buildLegend() {
   $("legend").innerHTML = Object.entries(STATE_COLORS)
     .map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`)
@@ -327,25 +428,11 @@ function buildLegend() {
 }
 
 function drawTimeline() {
-  const { ctx, w, h } = fit($("timeline"));
-  ctx.clearRect(0, 0, w, h);
   if (!S.states.length) return;
   const tEnd = S.states[S.states.length - 1].t;
   const span = Math.max(30, Math.min(TIMELINE_SECONDS, tEnd - S.states[0].t + 1));
-  const X = (t) => w - ((tEnd - t) / span) * w;
-  const barH = h - 18;
-  S.states.forEach((s, i) => {
-    const next = S.states[i + 1]?.t ?? s.t + 1;
-    ctx.fillStyle = STATE_COLORS[s.state] || "#666";
-    const x = Math.floor(X(s.t));
-    ctx.fillRect(x, 0, Math.max(1, Math.ceil(X(next)) - x), barH); // integer edges: no seams
-  });
-  ctx.fillStyle = css("--muted");
-  ctx.font = "11px Inter, system-ui, sans-serif";
-  const step = span > 120 ? 30 : 10;
-  for (let t = Math.max(0, Math.ceil((tEnd - span) / step) * step); t <= tEnd; t += step) {
-    ctx.fillText(`${t}s`, X(t) - 8, h - 3);
-  }
+  TL.win = { t0: tEnd - span, t1: tEnd };
+  TL.plot.setData([[TL.win.t0, TL.win.t1], [null, null]]);
 }
 
 // ---- status & controls ---------------------------------------------------------------
@@ -422,13 +509,6 @@ document.addEventListener("keydown", (e) => {
     $("pause").click();
   }
 });
-window.addEventListener("resize", () => {
-  drawVideo();
-  drawPlane();
-  drawSignals();
-  drawTimeline();
-});
-
 // ---- websocket ------------------------------------------------------------------------
 function connect() {
   const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
@@ -465,8 +545,84 @@ async function loadInfo() {
   }
 }
 
+// ---- grid layout (GridStack) --------------------------------------------------------
+const GRID_ROWS = 20; // default layout height, in rows: the cell height scales so it fills the window
+let grid = null;
+
+function resizePlots() {
+  for (const { plot, el } of Object.values(SPARKS)) {
+    const w = Math.max(40, el.clientWidth);
+    const h = Math.max(16, el.clientHeight);
+    if (plot.width !== w || plot.height !== h) plot.setSize({ width: w, height: h });
+  }
+  const tl = $("timeline");
+  const w = Math.max(100, tl.clientWidth);
+  const h = Math.max(30, tl.clientHeight);
+  if (TL.plot.width !== w || TL.plot.height !== h) TL.plot.setSize({ width: w, height: h });
+}
+
+function redrawAll() {
+  resizePlots();
+  drawVideo();
+  drawPlane();
+  drawSignals();
+  drawTimeline();
+}
+
+function fitRows() {
+  const top = $("grid").getBoundingClientRect().top + window.scrollY;
+  const cell = Math.max(18, Math.min(64, Math.floor((window.innerHeight - top - 10) / GRID_ROWS)));
+  grid.cellHeight(cell);
+}
+
+function setupGrid() {
+  const KEY = "aria-demo-grid-v2";
+  grid = GridStack.init(
+    { column: 12, cellHeight: 24, margin: 3, float: false, handle: ".panel-head", resizable: { handles: "se,e,s" } },
+    "#grid",
+  );
+  const defaults = grid.save(false);
+  const known = new Set(defaults.map((n) => n.id));
+  // load() resolves collisions for the whole set at once; only ids that exist are touched.
+  const apply = (layout) => grid.load(layout.filter((n) => known.has(n.id)), false);
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (Array.isArray(saved)) apply(saved);
+  } catch {}
+  fitRows();
+  grid.on("change", () => {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(grid.save(false)));
+    } catch {}
+  });
+  $("resetLayout").onclick = () => {
+    try {
+      localStorage.removeItem(KEY);
+    } catch {}
+    apply(defaults);
+  };
+
+  let queued = false;
+  const schedule = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      redrawAll();
+    });
+  };
+  const ro = new ResizeObserver(schedule);
+  document.querySelectorAll(".fill, .spark").forEach((el) => ro.observe(el));
+  window.addEventListener("resize", () => {
+    fitRows();
+    schedule();
+  });
+}
+
 buildSignals();
+buildTimeline();
 buildLegend();
+setupGrid();
 drawPlane();
 loadInfo();
 connect();
