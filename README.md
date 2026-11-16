@@ -172,6 +172,12 @@ Run the dashboard on the live stream from the glasses:
 uv run ariasense live --interface usb
 ```
 
+If both the pc and the glasses are connected to the same wifi:
+```bash
+uv run ariasense live --interface wifi_sta
+```
+
+
 Check which streams arrive, at what rate, and with what latency:
 
 ```bash
